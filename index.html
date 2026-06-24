@@ -1,0 +1,3565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Med Cart Recon Generator — AllCare MSC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<!-- Tesseract.js loaded on-demand only when a scanned PDF is detected -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-900: #0d2b1a;
+    --green-800: #1E5631;
+    --green-700: #2D7A47;
+    --green-600: #3a9158;
+    --green-400: #6bbf87;
+    --green-100: #e8f5ec;
+    --green-50:  #f4fbf6;
+    --navy:      #1F3864;
+    --slate:     #4a5568;
+    --muted:     #718096;
+    --border:    #e2e8f0;
+    --bg:        #f8faf9;
+    --white:     #ffffff;
+    --danger:    #e53e3e;
+    --danger-bg: #fff5f5;
+    --success:   #276749;
+    --success-bg:#f0fff4;
+    --radius:    10px;
+    --shadow:    0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 24px rgba(0,0,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: #2d3748;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--green-800);
+    color: white;
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .logo-text { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .logo-sub { font-size: 12px; opacity: 0.65; font-weight: 400; }
+  .header-badge {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  main {
+    flex: 1;
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  .page-title { font-size: 22px; font-weight: 600; color: var(--green-800); margin-bottom: 4px; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.5; }
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--green-800);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;
+  }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green-100); color: var(--green-800);
+    font-size: 11px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  label { font-size: 12px; font-weight: 500; color: var(--slate); display: block; margin-bottom: 4px; }
+  input[type=text], input[type=date], input[type=time] {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px; font-family: 'DM Sans', sans-serif;
+    background: var(--white); color: #2d3748;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  input[type=text]:focus, input[type=date]:focus, input[type=time]:focus { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(58,145,88,0.1); }
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg);
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag {
+    border-color: var(--green-600);
+    background: var(--green-50);
+  }
+  .drop-zone input { display: none; }
+  .dz-icon { font-size: 32px; margin-bottom: 10px; display: block; }
+  .dz-title { font-size: 14px; font-weight: 500; color: var(--slate); margin-bottom: 4px; }
+  .dz-sub { font-size: 12px; color: var(--muted); }
+  .dz-btn {
+    display: inline-block; margin-top: 12px;
+    padding: 7px 16px;
+    background: var(--green-800); color: white;
+    border-radius: 6px; font-size: 12px; font-weight: 500;
+    border: none; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: background 0.15s;
+  }
+  .dz-btn:hover { background: var(--green-700); }
+  .status {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #edf2f7;
+    color: var(--slate);
+    margin-top: 10px;
+  }
+  .status.success { background: var(--success-bg); color: var(--success); }
+  .status.error   { background: var(--danger-bg); color: var(--danger); }
+  .status.loading { background: #ebf8ff; color: #2b6cb0; }
+  .spinner {
+    width: 14px; height: 14px; flex-shrink: 0;
+    border: 2px solid rgba(0,0,0,0.1);
+    border-top-color: #3182ce;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-track {
+    flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+    border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: #3182ce; border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin: 12px 0;
+  }
+  .stat-box {
+    background: var(--green-50); border: 1px solid var(--green-100);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .stat-box .lbl { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .stat-box .val { font-size: 22px; font-weight: 600; color: var(--green-800); }
+  .table-wrap {
+    max-height: 220px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    position: sticky; top: 0;
+    padding: 7px 10px; text-align: left;
+    background: #f7fafc; color: var(--muted);
+    font-weight: 600; border-bottom: 1px solid var(--border);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  td {
+    padding: 7px 10px; border-bottom: 1px solid #f0f0f0;
+    color: #2d3748;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--green-50); }
+  .badge {
+    display: inline-block; padding: 2px 8px;
+    border-radius: 12px; font-size: 11px; font-weight: 500;
+    background: var(--green-100); color: var(--green-800);
+  }
+  .format-badge {
+    display: inline-block; padding: 2px 8px;
+    border-radius: 12px; font-size: 11px; font-weight: 500;
+    background: #ebf8ff; color: #2b6cb0;
+  }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 6px;
+    font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: all 0.15s; border: 1px solid transparent;
+  }
+  .btn-primary { background: var(--green-800); color: white; }
+  .btn-primary:hover { background: var(--green-700); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-outline {
+    background: white; color: var(--slate);
+    border-color: var(--border);
+  }
+  .btn-outline:hover { background: var(--bg); }
+  .result-file {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px; background: var(--green-50);
+    border: 1px solid var(--green-100); border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .file-icon {
+    width: 36px; height: 36px; background: var(--green-800);
+    border-radius: 6px; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; flex-shrink: 0;
+  }
+  .file-name { font-size: 13px; font-weight: 600; color: var(--green-800); }
+  .file-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  footer {
+    text-align: center; padding: 1rem;
+    font-size: 11px; color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+  @media (max-width: 480px) {
+    .field-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+  }
+  .upload-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .slot-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .slot-label { font-size: 13px; font-weight: 600; color: var(--slate); }
+  .slot-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+  .slot-tag.required { background: #fff5f5; color: var(--danger); }
+  .slot-tag.optional { background: #f0f4ff; color: #4a56a6; }
+  .slot-helper { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .slot-b .drop-zone { border-color: #b794f4; }
+  .slot-b .drop-zone:hover, .slot-b .drop-zone.drag { border-color: #805ad5; background: #faf5ff; }
+  .slot-b .dz-btn { background: #553c9a; }
+  .slot-b .dz-btn:hover { background: #44337a; }
+  .facility-banner { border-radius: 8px; padding: 10px 14px; margin-top: 12px; font-size: 12.5px; line-height: 1.6; }
+  .facility-banner.ok { background: var(--success-bg); border: 1px solid var(--green-400); color: var(--success); }
+  .facility-banner.bad { background: var(--danger-bg); border: 1px solid #fc8181; color: #c53030; }
+  .comp-summary { background: #f7fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 10px; }
+  .comp-summary-title { font-size: 12px; font-weight: 600; color: var(--slate); margin-bottom: 8px; }
+  .change-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cpill { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; }
+  .cpill.disc  { background: #fff5f5; color: #c53030; }
+  .cpill.chg   { background: #ebf8ff; color: #2b6cb0; }
+  .cpill.new   { background: #fffff0; color: #744210; }
+  .cpill.rep   { background: var(--green-50); color: var(--green-800); }
+  .cpill.leave { background: #fffbeb; color: #92400e; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">💊</div>
+    <div>
+      <div class="logo-text">AllCare MSC</div>
+      <div class="logo-sub">Med Cart Recon Generator</div>
+    </div>
+  </div>
+  <div class="header-badge">Dazzle Health PC</div>
+</header>
+
+<main>
+  <div class="page-title">AllRx Document Generator</div>
+  <div class="page-sub">Upload a Medication List PDF or manifest (Excel/CSV) from AllRx / PioneerRx and generate a <strong>Med Cart Reconciliation Form</strong> or a <strong>Medication List for Cycle Check</strong> — all from the same upload.</div>
+
+  <div class="card" id="step1-card">
+    <div class="card-title"><span class="step-num">1</span> Facility Info</div>
+    <div class="field-grid">
+      <div>
+        <label for="facility-name">Facility Name</label>
+        <input type="text" id="facility-name" placeholder="e.g. High Desert Haven ALF" />
+      </div>
+      <div>
+        <label for="cycle-date">Cycle Date</label>
+        <input type="date" id="cycle-date" />
+      </div>
+      <div>
+        <label for="cycle-start-date">Cycle Start Date <span style="font-size:10px;color:var(--muted);font-weight:400">(when meds start)</span></label>
+        <input type="date" id="cycle-start-date" />
+      </div>
+      <div>
+        <label for="start-time">Start Time</label>
+        <input type="time" id="start-time" />
+      </div>
+      <div>
+        <label for="end-time">End Time</label>
+        <input type="time" id="end-time" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="step2-card">
+    <div class="card-title"><span class="step-num">2</span> Upload Manifests</div>
+    <div class="upload-slots">
+      <div class="upload-slot slot-a">
+        <div class="slot-label-row">
+          <span class="slot-label">📋 This Cycle's Manifest</span>
+          <span class="slot-tag required">Required</span>
+        </div>
+        <div class="drop-zone" id="drop-zone-a">
+          <input type="file" id="pdf-input-a" accept=".pdf,.xlsx,.xls,.csv" />
+          <span class="dz-icon">📄</span>
+          <div class="dz-title">Current cycle manifest</div>
+          <div class="dz-sub">PDF, Excel (.xlsx / .xls) or CSV — AllCare / PioneerRx</div>
+          <button class="dz-btn" onclick="document.getElementById('pdf-input-a').click();event.stopPropagation()">Browse file</button>
+        </div>
+        <div id="upload-status-a"></div>
+      </div>
+      <div class="upload-slot slot-b">
+        <div class="slot-label-row">
+          <span class="slot-label">📋 Previous Cycle's Manifest</span>
+          <span class="slot-tag optional">Optional</span>
+        </div>
+        <div class="slot-helper">Upload to enable auto-change detection &amp; comparison</div>
+        <div class="drop-zone" id="drop-zone-b">
+          <input type="file" id="pdf-input-b" accept=".pdf,.xlsx,.xls,.csv" />
+          <span class="dz-icon">📄</span>
+          <div class="dz-title">Previous cycle manifest</div>
+          <div class="dz-sub">PDF, Excel (.xlsx / .xls) or CSV — AllCare / PioneerRx</div>
+          <button class="dz-btn" onclick="document.getElementById('pdf-input-b').click();event.stopPropagation()">Browse file</button>
+        </div>
+        <div id="upload-status-b"></div>
+      </div>
+    </div>
+      <div class="upload-slot slot-c" style="margin-top:12px;border:1px dashed #8b5cf6;border-radius:8px;padding:12px;background:#faf5ff">
+        <div class="slot-label-row">
+          <span class="slot-label" style="color:#553c9a">⚠ Cycle Exceptions Manifest</span>
+          <span class="slot-tag optional">Optional</span>
+        </div>
+        <div class="slot-helper" style="font-size:12px;color:#553c9a;margin-bottom:8px">Upload the exceptions doc — these meds go to Section 3 only and are excluded from Routine/PRN sections</div>
+        <div class="drop-zone" id="drop-zone-c" style="border-color:#8b5cf6">
+          <input type="file" id="pdf-input-c" accept=".pdf,.xlsx,.xls,.csv" />
+          <span class="dz-icon">📋</span>
+          <div class="dz-title">Exceptions manifest</div>
+          <div class="dz-sub">PDF, Excel (.xlsx / .xls) or CSV</div>
+          <button class="dz-btn" onclick="document.getElementById('pdf-input-c').click();event.stopPropagation()">Browse file</button>
+        </div>
+        <div id="upload-status-c"></div>
+      </div>
+    <div id="facility-banner" style="display:none"></div>
+  </div>
+
+  <div class="card" id="step3-card" style="display:none">
+    <div class="card-title"><span class="step-num">3</span> Extracted Data</div>
+    <div id="parse-status"></div>
+    <div id="preview" style="display:none">
+      <div class="stats-row" id="stats-row"></div>
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Patients Found</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Patient Name</th><th>Rx Count</th></tr></thead>
+          <tbody id="preview-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:1rem">
+        <div id="comp-section" style="display:none;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Cycle Change Report (both manifests)</div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="gen-comp-btn" onclick="generateComparisonExcel()" style="background:#553c9a;border-color:#553c9a">📊 Changes Report (.xlsx)</button>
+            <button class="btn btn-primary" id="gen-comp-pdf-btn" onclick="generateComparisonPDF()" style="background:#1F3864;border-color:#1F3864">📄 Changes PDF</button>
+          </div>
+          <div id="comp-summary-area"></div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Med Cart Reconciliation Form</div>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="btn btn-primary" id="gen-btn" onclick="generateExcel()">📊 .xlsx</button>
+          <button class="btn btn-primary" id="gen-xls-btn" onclick="generateExcel('xls')" style="background:var(--green-700);border-color:var(--green-700)">📊 .xls</button>
+          <button class="btn btn-primary" id="gen-csv-btn" onclick="generateCSV()" style="background:var(--green-600);border-color:var(--green-600)">📋 .csv</button>
+          <button class="btn btn-primary" id="gen-pdf-btn" onclick="generatePDF()" style="background:var(--navy);border-color:var(--navy)">📄 Recon PDF</button>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Medication List — Cycle Check</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="gen-medlist-btn" onclick="generateMedList()" style="background:#553c9a;border-color:#553c9a">📋 Med List PDF</button>
+          <button class="btn btn-outline" onclick="resetApp()">↺ Start Over</button>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;margin-top:10px">Consolidated Visit Form</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="gen-consolidated-btn" onclick="generateConsolidatedForm()" style="background:#2c5f2e;border-color:#2c5f2e;font-size:13px">📋 Consolidated Visit Form (manifest + med cart recon)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="result-card" style="display:none">
+    <div class="card-title"><span class="step-num">✓</span> File Ready</div>
+    <div id="result-inner"></div>
+  </div>
+
+  <div id="error-area"></div>
+</main>
+
+<footer>AllCare MSC Program · Dazzle Health PC · AllRx · For internal use only</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let parsedData = null;      // alias for parsedDataA (backward compat)
+let parsedDataA = null;     // current cycle
+let parsedDataB = null;     // previous cycle (optional)
+let parsedDataC = null;     // exceptions manifest (optional slot C)
+let excAllPtKeys = new Set(); // patients where ALL meds are exceptions
+let excNotesMap  = new Map(); // ptKey|medKey → exception note text
+let detectedFormat = null;
+let facilityNameA = '', facilityNameB = '';
+let comparisonResult = null;
+
+function dzSetup(dzId, inputId, slot) {
+  const dz = document.getElementById(dzId);
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], slot); });
+  document.getElementById(inputId).addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0], slot); });
+  dz.addEventListener('click', e => { if(e.target.tagName !== 'BUTTON') document.getElementById(inputId).click(); });
+}
+dzSetup('drop-zone-a', 'pdf-input-a', 'A');
+dzSetup('drop-zone-b', 'pdf-input-b', 'B');
+dzSetup('drop-zone-c', 'pdf-input-c', 'C');
+
+function showError(msg) {
+  document.getElementById('error-area').innerHTML = `<div class="status error">⚠ ${msg}</div>`;
+}
+function clearError() { document.getElementById('error-area').innerHTML = ''; }
+
+// Graceful fallback for Slot C when no parser can read the exceptions PDF
+function slotCFallback() {
+  parsedDataC = [];
+  document.getElementById('upload-status-c').innerHTML = `
+    <div style="color:#553c9a;background:#f3f0ff;border:1px solid #c4b5fd;
+                padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5">
+      <strong>⚠ Exceptions PDF format not readable.</strong><br>
+      This PDF uses an encoding our reader cannot decode.<br>
+      <strong>Best fix:</strong> Export the exceptions list as <strong>Excel (.xlsx)</strong> or <strong>CSV</strong> — it will parse perfectly.<br>
+      You can still generate the Consolidated Visit Form now — Section 3 (Exceptions) will be empty.
+    </div>`;
+}
+
+async function handleFile(file, slot='A') {
+  const statusEl = document.getElementById('upload-status-' + slot.toLowerCase());
+  clearError();
+  const name = file.name.toLowerCase();
+  if (!name.endsWith('.pdf') && !name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')) {
+    showError('Please upload a PDF, Excel (.xlsx / .xls), or CSV file.'); return;
+  }
+  if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) {
+    await handleSpreadsheetFile(file, slot); return;
+  }
+
+  statusEl.innerHTML = `<div class="status loading"><div class="spinner"></div><span>Reading <strong>${file.name}</strong>…</span></div>`;
+  document.getElementById('step3-card').style.display = 'block';
+  if (slot === 'A') document.getElementById('preview').style.display = 'none';
+  document.getElementById('parse-status').innerHTML = `<div class="status loading"><div class="spinner"></div><span>Extracting patient data…</span><div class="progress-track"><div class="progress-fill" id="prog" style="width:5%"></div></div></div>`;
+
+  try {
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+    const prog = document.getElementById('prog');
+    const pageData = [];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const vp = page.getViewport({ scale: 1 });
+      const items = content.items
+        .filter(it => it.str.trim())
+        .map(it => ({
+          text: it.str.trim(),
+          x: Math.round(it.transform[4]),
+          y: Math.round(vp.height - it.transform[5]),
+          w: Math.round(it.width),
+          fs: Math.round(it.height)
+        }));
+      pageData.push({ pageNum: i, items, vp });
+      if (prog) prog.style.width = Math.round((i / pdf.numPages) * 60) + '%';
+    }
+
+    // Check for scanned (image-only) PDF — fall back to OCR
+    const totalChars = pageData.flatMap(p => p.items.map(it => it.text)).join('').length;
+    if (totalChars < 80) {
+      if (slot === 'C') {
+        // Slot C never throws — exceptions PDFs may be custom format, handle gracefully
+        try { await handleScannedPdf(pdf, file.name, prog, 'C'); }
+        catch(e) { slotCFallback(); }
+        return;
+      }
+      await handleScannedPdf(pdf, file.name, prog, slot);
+      return;
+    }
+
+    // Detect PDF format
+    const allText = pageData.flatMap(p => p.items.map(it => it.text)).join(' ');
+    const isManifest = /Rx Number\s+Patient Full Name\s+Dispensed Item/i.test(allText);
+    const isMedList  = /Current Medication List/i.test(allText)
+                    || /Medication List[\s\S]{0,30}Cycle Check/i.test(allText)
+                    || /DOB\s+\d{2}\/\d{2}\/\d{4}/.test(allText)
+                    || (/\bDOB\b/i.test(allText) && /\bPrescriber\b/i.test(allText));
+
+    // Auto-detect facility and date
+    const facilityMatch = allText.match(/Facility[:\s]+([A-Z][A-Za-z\s]+?)(?:Printed|Cycle|$)/);
+    const detectedFacility = facilityMatch ? facilityMatch[1].trim().replace(/\s+/g,' ') : '';
+    if (detectedFacility && slot === 'A' && !document.getElementById('facility-name').value) {
+      document.getElementById('facility-name').value = detectedFacility;
+    }
+    if (slot === 'A') facilityNameA = detectedFacility || document.getElementById('facility-name').value || '';
+    else facilityNameB = detectedFacility || '';
+
+    const cycleMatch = allText.match(/Cycle Date[:\s]*([\w]+ \d+,?\s*\d{4})/i);
+    if (cycleMatch && slot === 'A' && !document.getElementById('cycle-date').value) {
+      const d = new Date(cycleMatch[1].replace(',','').trim());
+      if (!isNaN(d)) document.getElementById('cycle-date').value = d.toISOString().split('T')[0];
+    }
+
+    if (prog) prog.style.width = '70%';
+
+    let result;
+    if (isManifest) {
+      detectedFormat = 'manifest';
+      result = parseManifestFormat(pageData);
+    } else if (isMedList) {
+      detectedFormat = 'medlist';
+      result = parseMedListFormat(pageData);
+    } else {
+      // Try manifest first, then medlist
+      result = parseManifestFormat(pageData);
+      if (!result.length) result = parseMedListFormat(pageData);
+      detectedFormat = result.length ? 'auto' : null;
+    }
+
+    if (prog) prog.style.width = '100%';
+
+    // Slot C (exceptions) — never throw; fall back to OCR if standard parsing yields nothing
+    if (slot === 'C') {
+      if (result && result.length) {
+        parsedDataC = result;
+        const medCount = parsedDataC.reduce((s,p)=>s+(p.rxCount||0),0);
+        document.getElementById('upload-status-c').innerHTML =
+          `<div class="status success">✓ Exceptions loaded: ${parsedDataC.length} patient(s), ${medCount} med(s)</div>`;
+        return;
+      }
+      // Standard parsing found nothing — try OCR, then Rx-number fallback
+      document.getElementById('upload-status-c').innerHTML =
+        `<div class="status loading"><div class="spinner"></div><span>Exceptions PDF: running OCR…</span></div>`;
+      try {
+        await handleScannedPdf(pdf, file.name, prog, 'C');
+      } catch(ocrErr) {
+        // OCR also couldn't find structured patient records (custom exceptions format).
+        // Last resort: pull any 6-digit Rx numbers from the raw text and mark them as exceptions.
+        const rxNums = [...new Set((allText.match(/\b\d{6}\b/g)||[]))];
+        if (rxNums.length) {
+          parsedDataC = [{ name:'__EXCEPTIONS__', medications: rxNums.map(rx=>({ medName:'', rxNum:rx, prescriber:'', directions:'' })), rxCount:rxNums.length }];
+          document.getElementById('upload-status-c').innerHTML =
+            `<div class="status success">✓ Exceptions uploaded — ${rxNums.length} Rx number(s) identified as exceptions</div>`;
+        } else {
+          parsedDataC = [];
+          document.getElementById('upload-status-c').innerHTML =
+            `<div class="status" style="color:#553c9a;background:#f3f0ff;border:1px solid #c4b5fd;padding:8px;border-radius:6px;font-size:12px">
+              ⚠ Exceptions PDF format not readable. For best results, export it as <strong>Excel (.xlsx)</strong> or <strong>CSV</strong> instead.
+              You can still generate the Consolidated Visit Form — Section 3 will be empty.
+            </div>`;
+        }
+      }
+      return;
+    }
+
+    if (!result || !result.length) {
+      throw new Error('No patient records found. Please confirm this is an AllCare or PioneerRx Medication List PDF.');
+    }
+
+    if (slot === 'A') { parsedDataA = result; parsedData = result; facilityNameA = document.getElementById('facility-name').value || facilityNameA; }
+    else if (slot === 'B') { parsedDataB = result; facilityNameB = facilityNameB || document.getElementById('facility-name').value || ''; }
+    showPreview(parsedDataA, detectedFormat);
+    validateAndProceed();
+  } catch(err) {
+    document.getElementById('parse-status').innerHTML = '';
+    showError('Parse error: ' + err.message);
+  }
+}
+
+// ── SPREADSHEET HELPER: parse Excel serial or string date → "MM/DD/YYYY"
+function xlDobStr(raw) {
+  if (!raw) return '';
+  if (typeof raw === 'number') {
+    try {
+      const d = XLSX.SSF.parse_date_code(raw);
+      if (d) return String(d.m).padStart(2,'0')+'/'+String(d.d).padStart(2,'0')+'/'+d.y;
+    } catch(_) {}
+  }
+  const dt = new Date(String(raw)+'T12:00:00');
+  if (!isNaN(dt.getTime())) {
+    return (dt.getMonth()+1).toString().padStart(2,'0')+'/'+dt.getDate().toString().padStart(2,'0')+'/'+dt.getFullYear();
+  }
+  return String(raw);
+}
+function xlDobAge(raw) {
+  if (!raw) return '';
+  let dob;
+  if (typeof raw === 'number') {
+    try { const d = XLSX.SSF.parse_date_code(raw); if (d) dob = new Date(d.y, d.m-1, d.d); } catch(_) {}
+  } else { dob = new Date(String(raw)+'T12:00:00'); }
+  if (!dob || isNaN(dob.getTime())) return '';
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  if (today.getMonth() < dob.getMonth() || (today.getMonth()===dob.getMonth() && today.getDate()<dob.getDate())) age--;
+  return String(age);
+}
+
+// ── SPREADSHEET HANDLER: Excel / CSV input
+// ── EXCEPTIONS SPREADSHEET PARSER ────────────────────────────────────────────
+// Handles: Facility name | Patient name | Item name | Notes
+// Patient name is blank for continuation rows — carry forward last seen name.
+// "All meds" means all meds for that patient are exceptions.
+function parseExceptionsSheet(rows) {
+  const h = rows[0].map(c => String(c).trim().toLowerCase());
+  const ptCol   = h.findIndex(c => c.includes('patient'));
+  const medCol  = h.findIndex(c => c.includes('item') || (c.includes('med') && !c.includes('patient')));
+  const noteCol = h.findIndex(c => c.includes('note'));
+
+  const patientMap = new Map(); // ptKey → { name, meds[] }
+  const allPtKeys  = new Set(); // patients where ALL meds are exceptions
+  const notesMap   = new Map(); // ptKey+'|'+medKey → note
+
+  let lastPtName = '';
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const rawPt  = ptCol  >= 0 ? String(row[ptCol] ||'').trim() : '';
+    const rawMed = medCol >= 0 ? String(row[medCol]||'').trim() : '';
+    const note   = noteCol>= 0 ? String(row[noteCol]||'').trim(): '';
+
+    const ptName = rawPt || lastPtName;
+    if (!ptName || !rawMed) continue;
+    lastPtName = ptName;
+
+    const ptKey  = normPtName(ptName);
+    if (!patientMap.has(ptKey)) patientMap.set(ptKey, { name: ptName, meds:[] });
+
+    if (rawMed.toLowerCase().replace(/\s+/g,'') === 'allmeds') {
+      allPtKeys.add(ptKey);
+      notesMap.set(ptKey + '|__ALL__', note);
+    } else {
+      const medKey = normDrug(normSig(rawMed));
+      patientMap.get(ptKey).meds.push({ medName: rawMed, rxNum: '', directions: note });
+      notesMap.set(ptKey + '|' + medKey, note);
+    }
+  }
+
+  const patients = [];
+  patientMap.forEach((pt, ptKey) => {
+    patients.push({
+      name: formatName(pt.name), dob:'', ageSex:'', pharmacy:'', pcp:'',
+      rxCount: pt.meds.length,
+      medications: pt.meds.map((m, i) => ({
+        num: i+1, medName: m.medName, rxNum: m.rxNum,
+        prescriber: '', directions: m.directions, rxStatus: ''
+      }))
+    });
+  });
+
+  return { patients, allPtKeys, notesMap };
+}
+
+async function handleSpreadsheetFile(file, slot='A') {
+  document.getElementById('upload-status-' + slot.toLowerCase()).innerHTML = `<div class="status loading"><div class="spinner"></div><span>Reading <strong>${file.name}</strong>…</span></div>`;
+  document.getElementById('step3-card').style.display = 'block';
+  // Only hide preview for slot A (re-parse); slot B should not hide the existing slot A preview & buttons
+  if (slot === 'A') document.getElementById('preview').style.display = 'none';
+  document.getElementById('parse-status').innerHTML = `<div class="status loading"><div class="spinner"></div><span>Parsing spreadsheet…</span></div>`;
+
+  try {
+    const ab = await file.arrayBuffer();
+    const wb = XLSX.read(ab, { type: 'array', cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
+    // ── Expand merged cells so every row gets the top-left value (not just the first row)
+    // This fixes merged Patient name / Notes cells in exceptions docs.
+    (ws['!merges'] || []).forEach(merge => {
+      const tlAddr = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
+      const tlCell = ws[tlAddr];
+      for (let r = merge.s.r; r <= merge.e.r; r++) {
+        for (let c = merge.s.c; c <= merge.e.c; c++) {
+          if (r === merge.s.r && c === merge.s.c) continue; // skip top-left (already has value)
+          const addr = XLSX.utils.encode_cell({ r, c });
+          ws[addr] = tlCell ? Object.assign({}, tlCell) : { v: '', t: 's' };
+        }
+      }
+    });
+
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (!rows.length) throw new Error('Spreadsheet is empty.');
+
+    // ── Slot C: detect custom exceptions format (Patient name | Item name | Notes)
+    if (slot === 'C') {
+      const h = rows[0].map(c => String(c).trim().toLowerCase());
+      const isExcFmt = h.some(c => c.includes('item')) && h.some(c => c.includes('patient'));
+      if (isExcFmt) {
+        const excResult = parseExceptionsSheet(rows);
+        parsedDataC = excResult.patients;
+        excAllPtKeys = excResult.allPtKeys;
+        excNotesMap  = excResult.notesMap;
+        const totalMeds = parsedDataC.reduce((s,p) => s+p.rxCount, 0);
+        const allCount  = excAllPtKeys.size;
+        document.getElementById('upload-status-c').innerHTML =
+          `<div class="status success">✓ Exceptions loaded: ${parsedDataC.length} patient(s) · ${totalMeds} specific med(s)${allCount ? ' · '+allCount+' patient(s) fully excepted' : ''}</div>`;
+        document.getElementById('parse-status').innerHTML = '';
+        return;
+      }
+    }
+
+    // Find header row (first row containing recognisable column names)
+    let headerIdx = -1, headers = [];
+    for (let i = 0; i < Math.min(10, rows.length); i++) {
+      const r = rows[i].map(c => String(c).trim().toLowerCase());
+      if (r.some(c => c.includes('rx') || c.includes('patient') || c.includes('medication') || c.includes('drug'))) {
+        headerIdx = i; headers = r; break;
+      }
+    }
+    if (headerIdx < 0) throw new Error('Could not find column headers. Expected columns like Rx Number, Patient Name, Medication.');
+
+    // Map column indices by keyword matching (first exact match wins)
+    const col = (terms) => {
+      for (const t of terms) {
+        const idx = headers.findIndex(h => h === t);
+        if (idx >= 0) return idx;
+      }
+      for (const t of terms) {
+        const idx = headers.findIndex(h => h.includes(t));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+    const C = {
+      rx:         col(['rx number','rx#','rxnum','rx ']),
+      patient:    col(['patient full name','patient full','patient name','patient']),
+      last:       col(['patient last name','last name']),
+      first:      col(['patient first name','first name']),
+      med:        col(['dispensed item name','dispensed item','prescribed item','medication','drug name','med name','item']),
+      prescriber: col(['prescriber full name','prescriber','doctor','physician','md','provider']),
+      directions: col(['directions translated','direction','sig','instructions']),
+      dob:        col(['patient date of birth','date of birth','dob','birth date']),
+      gender:     col(['patient gender','gender','sex']),
+      facility:   col(['facility name','facility']),
+      rxStatus:   col(['rx status','rxstatus','status']),
+    };
+
+    // Build patient map from data rows
+    const patientMap = new Map(), order = [];
+    const seenRx = new Set(); // duplicate Rx detection across entire manifest
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const row = rows[i];
+      // Resolve patient name: prefer "Last, First" full name, fall back to separate columns
+      let patient = C.patient >= 0 ? String(row[C.patient]||'').trim() : '';
+      if (!patient && C.last >= 0 && C.first >= 0) {
+        const ln = String(row[C.last]||'').trim(), fn = String(row[C.first]||'').trim();
+        if (ln || fn) patient = ln + (fn ? ', '+fn : '');
+      }
+      if (!patient || patient.length < 2) continue;
+      if (/^(patient|name|total)/i.test(patient)) continue;
+
+      const rx         = C.rx         >= 0 ? String(row[C.rx]        ||'').trim() : '';
+      const medName    = C.med        >= 0 ? String(row[C.med]       ||'').trim() : '';
+      const prescriber = C.prescriber >= 0 ? String(row[C.prescriber]||'').trim() : '';
+      const directions = C.directions >= 0 ? String(row[C.directions]||'').trim() : '';
+      const rxStatus   = C.rxStatus   >= 0 ? String(row[C.rxStatus]  ||'').trim() : '';
+      const dobRaw     = C.dob        >= 0 ? row[C.dob]                            : '';
+      const genderRaw  = C.gender     >= 0 ? String(row[C.gender]    ||'').trim()  : '';
+
+      const dobStr  = xlDobStr(dobRaw);
+      const age     = xlDobAge(dobRaw);
+      const gLetter = genderRaw ? (genderRaw[0].toUpperCase()==='M' ? 'M' : genderRaw[0].toUpperCase()==='F' ? 'F' : genderRaw[0].toUpperCase()) : '';
+      const ageSex  = (age && gLetter) ? age+' | '+gLetter : (age || gLetter ? (age||'')+( age&&gLetter ? ' | ' : '')+gLetter : '');
+
+      // Duplicate Rx within same manifest
+      const isDuplicateRx = !!(rx && seenRx.has(rx));
+      if (rx) seenRx.add(rx);
+
+      const key = patient.toUpperCase().replace(/\s+/g,' ');
+      if (!patientMap.has(key)) {
+        patientMap.set(key, { name: formatName(patient), dob: dobStr, ageSex, rxCount: 0, rxNums: [], medications: [], pcp: prescriber });
+        order.push(key);
+      }
+      const p = patientMap.get(key);
+      // Update dob/ageSex if not yet set (first row for this patient might lack it)
+      if (!p.dob && dobStr) p.dob = dobStr;
+      if (!p.ageSex && ageSex) p.ageSex = ageSex;
+      p.rxCount++;
+      if (rx) p.rxNums.push(rx);
+      p.medications.push({ num: p.rxCount, medName, rxNum: rx, prescriber, directions, rxStatus, isDuplicateRx });
+    }
+
+    const result = order.map(k => patientMap.get(k));
+    detectedFormat = 'spreadsheet';
+    if (!result.length) throw new Error('No patient records found. Check that the file has Patient Name and Rx Number columns.');
+
+    // Extract facility name from data
+    let fac = '';
+    if (C.facility >= 0) {
+      for (let i = headerIdx + 1; i < rows.length && !fac; i++) fac = String(rows[i][C.facility]||'').trim();
+    }
+    if (!fac) {
+      const allText = rows.slice(0, 5).flat().join(' ');
+      const m = allText.match(/facility[:\s]+([A-Za-z\s]+?)(?:\s{2,}|$)/i);
+      if (m) fac = m[1].trim();
+    }
+
+    if (slot === 'A') {
+      parsedDataA = result; parsedData = result;
+      facilityNameA = fac;
+      if (fac && !document.getElementById('facility-name').value) document.getElementById('facility-name').value = fac;
+    } else if (slot === 'C') {
+      parsedDataC = result;
+      const totalRxC = result.reduce((s,p) => s+p.rxCount, 0);
+      document.getElementById('upload-status-c').innerHTML =
+        `<div class="status success">✓ Exceptions loaded: ${result.length} patient(s), ${totalRxC} med(s)</div>`;
+      document.getElementById('parse-status').innerHTML = '';
+      return;
+    } else {
+      parsedDataB = result;
+      facilityNameB = fac;
+    }
+
+    const totalRx = result.reduce((s,p) => s+p.rxCount, 0);
+    // Always update the slot's own upload status to success
+    document.getElementById('upload-status-' + slot.toLowerCase()).innerHTML =
+      `<div class="status success">✓ <strong>${file.name}</strong> — ${result.length} patients · ${totalRx} Rx</div>`;
+
+    if (slot === 'A') {
+      showPreview(parsedDataA, 'spreadsheet');
+    } else {
+      // Slot B: clear the "Parsing spreadsheet…" spinner in the extracted data area
+      document.getElementById('parse-status').innerHTML =
+        `<div class="status success">✓ Previous cycle loaded — ${result.length} patients · ${totalRx} Rx</div>`;
+    }
+    validateAndProceed();
+  } catch(err) {
+    document.getElementById('parse-status').innerHTML = '';
+    showError('Spreadsheet error: ' + err.message);
+  }
+}
+
+// ── FACILITY VALIDATION & COMPARISON TRIGGER ──────────────────────────────
+function normFacility(s) {
+  return (s||'').toLowerCase().trim().replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ');
+}
+function normPtName(s) {
+  // Strip middle initials (single-letter words) so "Moton, Leisha B" matches "Moton, Leisha"
+  return (s||'').toUpperCase().trim().replace(/[^A-Z\s]/g,'').replace(/\s+/g,' ')
+    .split(' ').filter(w => w.length > 1).join(' ');
+}
+function normDrug(s) {
+  return (s||'').toLowerCase().replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
+}
+// Strip SIG / frequency / route / dosing-code terms from drug names before comparison
+// So "Metoprolol 25mg T1T PO ONCE A DAY QD" and "Metoprolol 25mg T1T PO QD"
+// both reduce to "Metoprolol 25mg" and are treated as the same medication.
+function normSig(name) {
+  return (name||'')
+    // Frequency / timing terms
+    .replace(/\b(once\s+(?:a\s+)?day|twice\s+(?:a\s+)?day|three\s+times\s+(?:a\s+)?day|four\s+times\s+(?:a\s+)?day|once\s+daily|twice\s+daily|nightly|at\s+bedtime|bedtime|with\s+food|with\s+meals?|at\s+night|every\s+night|every\s+morning|in\s+the\s+morning|in\s+the\s+evening|daily|q\.?d\.?|b\.?i\.?d\.?|t\.?i\.?d\.?|q\.?i\.?d\.?|q\.?h\.?s\.?|q\.?a\.?m\.?|q\.?p\.?m\.?)\b/gi, '')
+    // Route-of-administration abbreviations (PO, SL, IM, IV, PR, SQ, TOP, INH, etc.)
+    .replace(/\b(p\.?o\.?|by\s+mouth|orally?|s\.?l\.?|sublingually?|s\.?q\.?|subcut(?:aneous(?:ly)?)?|i\.?m\.?|intramuscularly?|i\.?v\.?|intravenously?|p\.?r\.?|rectally?|top(?:ically?)?|inh(?:aled?|alation)?|transdermally?)\b/gi, '')
+    // AllRx dosing-instruction codes: T1T (take 1 tablet), T2T, T1C (capsule), etc.
+    .replace(/\bT\d+[A-Z]\b/gi, '')
+    .replace(/\s{2,}/g, ' ').trim();
+}
+function drugSimilar(a, b) {
+  const na = normDrug(normSig(a)), nb = normDrug(normSig(b));
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  // Same base drug name (first word) AND same dose numbers
+  const wa = na.split(' ')[0];
+  const wb = nb.split(' ')[0];
+  if (wa.length <= 3 || wa !== wb) return false;
+  const numsA = na.match(/\d+/g) || [];
+  const numsB = nb.match(/\d+/g) || [];
+  if (numsA.length !== numsB.length) return false;
+  if (!numsA.every((n, i) => n === numsB[i])) return false;
+  // Tablet ↔ Capsule/Cap: same name + same dose, only dosage form differs → same drug
+  const fa = na.replace(/\b(tablets?|tabs?|capsules?|caps?)\b/g, 'form');
+  const fb = nb.replace(/\b(tablets?|tabs?|capsules?|caps?)\b/g, 'form');
+  return fa === fb;
+}
+
+function validateAndProceed() {
+  const banner = document.getElementById('facility-banner');
+  const compSection = document.getElementById('comp-section');
+  const summArea = document.getElementById('comp-summary-area');
+
+  if (!parsedDataA) return;
+
+  // Show step3 when slot A is parsed
+  document.getElementById('step3-card').style.display = 'block';
+
+  if (!parsedDataB) {
+    banner.style.display = 'none';
+    if (compSection) compSection.style.display = 'none';
+    return;
+  }
+
+  // Both slots filled — validate facilities
+  const nA = normFacility(facilityNameA);
+  const nB = normFacility(facilityNameB);
+
+  if (nA && nB && nA !== nB) {
+    banner.style.display = 'block';
+    banner.className = 'facility-banner bad';
+    banner.innerHTML = `<strong>⚠ Facility Mismatch Detected</strong><br>
+      Slot A: <em>${facilityNameA || '(unknown)'}</em><br>
+      Slot B: <em>${facilityNameB || '(unknown)'}</em><br>
+      You can only compare two manifests from the <strong>same facility</strong>.
+      Cross-facility comparison is not allowed. Please re-upload the correct manifests.`;
+    comparisonResult = null;
+    if (compSection) compSection.style.display = 'none';
+    return;
+  }
+
+  const fac = facilityNameA || facilityNameB || document.getElementById('facility-name').value || 'Facility';
+  banner.style.display = 'block';
+  banner.className = 'facility-banner ok';
+  banner.innerHTML = `✓ Both manifests are from <strong>${fac}</strong> — comparison ready`;
+
+  comparisonResult = compareManifests(parsedDataA, parsedDataB);
+  if (compSection) compSection.style.display = 'block';
+  if (summArea) summArea.innerHTML = buildCompSummaryHTML(comparisonResult);
+}
+
+// ── COMPARISON ENGINE ─────────────────────────────────────────────────────
+function isPRN(directions) {
+  return /\bprn\b|as needed/i.test(directions||'');
+}
+
+function compareManifests(current, previous) {
+  const prevMap = new Map();
+  previous.forEach(p => prevMap.set(normPtName(p.name), p));
+  const processedPrev = new Set();
+  const results = [];
+
+  current.forEach(patient => {
+    const key = normPtName(patient.name);
+    const prevPt = prevMap.get(key);
+    processedPrev.add(key);
+
+    const currMeds = patient.medications || [];
+    const prevMeds = prevPt ? (prevPt.medications || []) : [];
+
+    const prevRxMap = new Map();
+    const prevDrugMap = new Map();
+    prevMeds.forEach(m => {
+      const rx = String(m.rxNum||'').trim();
+      if (rx) prevRxMap.set(rx, m);
+      const nd = normDrug(normSig(m.medName));
+      if (nd && !prevDrugMap.has(nd)) prevDrugMap.set(nd, m);
+    });
+
+    const usedPrevRx = new Set();
+    const currSeenRx  = new Set();
+    const currSeenDrugKey = new Set(); // same drug name+dose, any Rx# or prescriber → treat as one
+    const changes = [];
+
+    currMeds.forEach(m => {
+      const rx  = String(m.rxNum||'').trim();
+      const nd  = normDrug(normSig(m.medName));
+
+      // Rule: duplicate Rx# within current cycle → NEW (Replace pack / Add if missing)
+      if (rx && currSeenRx.has(rx)) {
+        changes.push({ action:'NEW', curr:m, prev:null, isDuplicate:true });
+        return;
+      }
+      if (rx) currSeenRx.add(rx);
+
+      // Same drug name+dose, different Rx# or different prescriber → same medication, skip duplicate
+      if (nd && currSeenDrugKey.has(nd)) return;
+      if (nd) currSeenDrugKey.add(nd);
+
+      // Rule: current med marked Discontinued → Leave as is
+      // Also mark any matching prev Rx as used to prevent double entry
+      if (m.rxStatus === 'Discontinued') {
+        if (rx && prevRxMap.has(rx)) {
+          usedPrevRx.add(rx);
+        } else {
+          for (const [pnd, pm] of prevDrugMap) {
+            if (drugSimilar(nd, pnd)) { usedPrevRx.add(String(pm.rxNum||'').trim()); break; }
+          }
+        }
+        changes.push({ action:'LEAVE_AS_IS', curr:m, prev:null });
+        return;
+      }
+
+      if (rx && prevRxMap.has(rx)) {
+        const prev = prevRxMap.get(rx);
+        usedPrevRx.add(rx);
+        if (prev.rxStatus === 'Discontinued') {
+          changes.push({ action:'REPLACE', curr:m, prev });
+        } else {
+          const isSame = normDrug(normSig(prev.medName))===nd || drugSimilar(prev.medName, m.medName);
+          changes.push({ action: isSame ? 'REPLACE' : 'CHANGED', curr:m, prev });
+        }
+      } else {
+        // Drug-name fallback match
+        let matched = null;
+        for (const [pnd, pm] of prevDrugMap) {
+          const pmRx = String(pm.rxNum||'').trim();
+          if (drugSimilar(nd, pnd) && !usedPrevRx.has(pmRx)) { matched = pm; break; }
+        }
+        if (matched) {
+          usedPrevRx.add(String(matched.rxNum||'').trim());
+          if (matched.rxStatus === 'Discontinued') {
+            changes.push({ action:'REPLACE', curr:m, prev:matched });
+          } else {
+            const isSame2 = normDrug(normSig(matched.medName))===nd || drugSimilar(matched.medName, m.medName);
+            changes.push({ action: isSame2 ? 'REPLACE' : 'CHANGED', curr:m, prev:matched });
+          }
+        } else {
+          changes.push({ action:'NEW', curr:m, prev:null });
+        }
+      }
+    });
+
+    // Previous meds not matched in current
+    prevMeds.forEach(m => {
+      const rx = String(m.rxNum||'').trim();
+      if (!usedPrevRx.has(rx)) {
+        const action = m.rxStatus === 'Discontinued' ? 'REMOVE' : 'LEAVE_AS_IS';
+        changes.push({ action, curr:null, prev:m });
+      }
+    });
+
+    // PRN override: any med with prn/as-needed in directions → Leave as is (overrides everything)
+    changes.forEach(ch => {
+      const dirs = (ch.curr||ch.prev||{}).directions||'';
+      if (isPRN(dirs)) ch.action = 'LEAVE_AS_IS';
+    });
+
+    // Deduplication safety pass — prevent same med appearing twice with conflicting actions
+    const seenMedKeys = new Map();
+    const toRemove = new Set();
+    changes.forEach((ch, i) => {
+      const med = ch.curr || ch.prev || {};
+      const rxKey  = String(med.rxNum||'').trim();
+      const nameKey = normDrug(normSig(med.medName||''));
+      const key = nameKey || rxKey;  // drug name is primary — same drug different Rx# = same entry
+      if (!key) return;
+      if (seenMedKeys.has(key)) {
+        const prevIdx = seenMedKeys.get(key);
+        const prevCh  = changes[prevIdx];
+        // Keep current-cycle entry over prev-only; otherwise keep first
+        if (ch.curr && !prevCh.curr) { toRemove.add(prevIdx); seenMedKeys.set(key, i); }
+        else { toRemove.add(i); }
+      } else {
+        seenMedKeys.set(key, i);
+      }
+    });
+    const finalChanges = changes.filter((_, i) => !toRemove.has(i));
+
+    const prio = { REMOVE:0, CHANGED:1, NEW:2, LEAVE_AS_IS:3, REPLACE:4 };
+    finalChanges.sort((a,b) => prio[a.action]-prio[b.action]);
+    results.push({ patient, changes:finalChanges, isNewPatient:!prevPt });
+  });
+
+  // Patients fully absent from current cycle
+  previous.forEach(p => {
+    const key = normPtName(p.name);
+    if (!processedPrev.has(key)) {
+      const changes = (p.medications||[]).map(m => {
+        if (isPRN(m.directions)) return { action:'LEAVE_AS_IS', curr:null, prev:m };
+        return { action: m.rxStatus==='Discontinued' ? 'REMOVE' : 'LEAVE_AS_IS', curr:null, prev:m };
+      });
+      results.push({ patient:p, changes, isDiscontinuedPatient:true });
+    }
+  });
+
+  results.sort((a,b) => normPtName(a.patient.name).localeCompare(normPtName(b.patient.name)));
+  return results;
+}
+
+function buildCompSummaryHTML(result) {
+  const counts = {REMOVE:0,CHANGED:0,NEW:0,REPLACE:0,LEAVE_AS_IS:0};
+  result.forEach(({changes}) => changes.forEach(c => { if(counts[c.action]!==undefined) counts[c.action]++; }));
+  const total = Object.values(counts).reduce((a,b)=>a+b,0);
+  return `<div class="comp-summary">
+    <div class="comp-summary-title">📊 Found ${total} items across ${result.length} patients</div>
+    <div class="change-pills">
+      <span class="cpill disc">Remove from cart: ${counts.REMOVE}</span>
+      <span class="cpill chg">Changed: ${counts.CHANGED}</span>
+      <span class="cpill new">Repl/Add if missing: ${counts.NEW}</span>
+      <span class="cpill rep">Replace pack: ${counts.REPLACE}</span>
+      <span class="cpill leave">Leave as is: ${counts.LEAVE_AS_IS}</span>
+    </div>
+  </div>`;
+}
+
+// ── OCR FALLBACK: Scanned PDF handler
+async function handleScannedPdf(pdf, filename, prog, slot='A') {
+  document.getElementById('parse-status').innerHTML =
+    `<div class="status loading"><div class="spinner"></div><span>Scanned PDF detected — loading OCR engine…</span><div class="progress-track"><div class="progress-fill" id="ocr-prog" style="width:2%"></div></div></div>`;
+
+  const op = document.getElementById('ocr-prog');
+  let worker;
+  try {
+    // Lazy-load Tesseract.js only when we actually need OCR (scanned PDF detected)
+    if (typeof Tesseract === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('OCR engine failed to load. Check your connection and try again.'));
+        document.head.appendChild(s);
+      });
+    }
+    worker = await Tesseract.createWorker('eng', 1, {
+      logger: m => { if (m.status === 'recognizing text' && op) op.style.width = Math.round(2 + m.progress * 30) + '%'; }
+    });
+
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      if (op) op.style.width = Math.round(32 + (i / pdf.numPages) * 60) + '%';
+      document.getElementById('parse-status').innerHTML =
+        `<div class="status loading"><div class="spinner"></div><span>OCR: page ${i} of ${pdf.numPages}…</span><div class="progress-track"><div class="progress-fill" id="ocr-prog" style="width:${Math.round(32+(i/pdf.numPages)*60)}%"></div></div></div>`;
+
+      const page = await pdf.getPage(i);
+      const vp   = page.getViewport({ scale: 2 });
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+      const { data: { text } } = await worker.recognize(canvas);
+      fullText += text + '\n<<PAGE>>\n';
+    }
+    await worker.terminate();
+
+    // For Slot C use a lenient exceptions parser — just needs Rx numbers, not full patient structure
+    const ocrResult = slot === 'C' ? parseExceptionsOcrText(fullText) : parseOcrText(fullText);
+    detectedFormat = 'ocr';
+
+    if (!ocrResult || !ocrResult.length) {
+      if (slot === 'C') { slotCFallback(); return; }
+      throw new Error('OCR found no patient records. The scan quality may be too low, or this is not a Medication List PDF.');
+    }
+
+    if (slot === 'A') { parsedDataA = ocrResult; parsedData = ocrResult; }
+    else if (slot === 'C') {
+      parsedDataC = ocrResult;
+      const medCount = ocrResult.reduce((s,p)=>s+(p.rxCount||0),0);
+      document.getElementById('upload-status-c').innerHTML =
+        `<div class="status success">✓ Exceptions loaded via OCR: ${medCount} exception Rx(s) identified</div>`;
+      return; // don't trigger comparison for slot C
+    }
+    else              { parsedDataB = ocrResult; }
+    showPreview(parsedDataA, 'ocr');
+    validateAndProceed();
+  } catch(err) {
+    if (worker) try { await worker.terminate(); } catch(_) {}
+    document.getElementById('parse-status').innerHTML = '';
+    if (slot === 'C') { slotCFallback(); return; }  // never show red error for exceptions slot
+    showError('OCR error: ' + (err?.message || String(err) || 'Unknown error'));
+  }
+}
+
+// ── OCR TEXT PARSER: works on raw Tesseract output (no coordinates)
+// ── EXCEPTIONS OCR PARSER ────────────────────────────────────────────────────
+// For custom exceptions PDFs that don't follow AllRx patient format.
+// Extracts all 6-digit Rx numbers and pairs them with whatever patient name
+// or medication text appears on the same line.
+function parseExceptionsOcrText(fullText) {
+  const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean);
+  const seenRx = new Set();
+  const medications = [];
+
+  lines.forEach(line => {
+    // Find all 6-digit Rx numbers on this line
+    const rxMatches = line.match(/\b(\d{6})\b/g) || [];
+    rxMatches.forEach(rx => {
+      if (seenRx.has(rx)) return;
+      seenRx.add(rx);
+      // Try to extract a medication name (capitalised text before or after the Rx)
+      const withoutRx = line.replace(/\b\d{6}\b/, '').replace(/\s{2,}/g,' ').trim();
+      // Try to extract patient name (Last, First pattern)
+      const nameMatch = line.match(/([A-Z][a-z]+,\s*[A-Z][a-z]+)/);
+      medications.push({
+        num: medications.length + 1,
+        medName: withoutRx.replace(/[^a-zA-Z0-9\s\-\.%\/]/g,'').trim(),
+        rxNum: rx,
+        prescriber: '',
+        directions: nameMatch ? nameMatch[1] : '', // store name in directions for later lookup
+        rxStatus: ''
+      });
+    });
+  });
+
+  if (!medications.length) return [];
+
+  // Return as single virtual patient entry so excRxSet matching works
+  return [{ name:'__EXCEPTIONS__', dob:'', ageSex:'', pharmacy:'', pcp:'',
+            rxCount: medications.length, medications }];
+}
+
+function parseOcrText(fullText) {
+  const patients = [];
+  const seen     = new Set();
+  const SKIP     = new Set(['medication','list','current','facility','printed','page','allrx','allcare','dazzle','health','active','diagnoses','reconciliation','pharmacy','directions','indication','prescriber','notes','verified']);
+  const lines    = fullText.split('\n').map(l => l.trim()).filter(Boolean);
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i] === '<<PAGE>>') continue;
+
+    // Need DOB anchor within the next 5 lines
+    let dobIdx = -1;
+    for (let j = 1; j <= 5 && i+j < lines.length; j++) {
+      if (/\bDOB\b/i.test(lines[i+j])) { dobIdx = i+j; break; }
+    }
+    if (dobIdx < 0) continue;
+
+    // Validate name line
+    const raw = lines[i].replace(/[^a-zA-Z\s,.''\-]/g,'').replace(/\s+/g,' ').trim();
+    if (raw.length < 4 || raw.split(' ').length < 2 || raw.split(' ').length > 6) continue;
+    if (raw.toLowerCase().split(/\s+/).some(w => SKIP.has(w))) continue;
+    if (/^\d/.test(raw)) continue;
+
+    const nameKey = raw.toUpperCase().replace(/\s+/g,' ');
+    if (seen.has(nameKey)) continue;
+    seen.add(nameKey);
+
+    // Extract metadata
+    let dob = '', pcp = '', ageSex = '', pharmacy = '';
+    for (let j = 1; j <= 8 && i+j < lines.length; j++) {
+      const l = lines[i+j];
+      if (!dob)      { const m = l.match(/DOB\s+([\d\/]+)/i);                       if (m) dob      = m[1]; }
+      if (!pcp)      { const m = l.match(/PCP\s+(.{4,50}?)(?:\s{2,}|PHARMACY|$)/i); if (m) pcp      = m[1].trim(); }
+      if (!ageSex)   { const m = l.match(/(\d+)\s*[|Il]\s*([MF])/i);               if (m) ageSex   = `${m[1]} | ${m[2].toUpperCase()}`; }
+      if (!pharmacy) { const m = l.match(/PHARMACY\s+(\S+)/i);                      if (m) pharmacy = m[1].trim(); }
+    }
+
+    // Parse medication table
+    const medications = [];
+    let inTable = false;
+    for (let j = dobIdx + 1; j < lines.length && j < i + 120; j++) {
+      if (lines[j] === '<<PAGE>>') continue;
+
+      // Stop when next patient starts
+      let stop = false;
+      for (let k = 1; k <= 4 && j+k < lines.length; k++) {
+        if (/\bDOB\b/i.test(lines[j+k])) { stop = true; break; }
+      }
+      if (stop) break;
+
+      if (/Current\s+Medication\s+List/i.test(lines[j])) { inTable = true; continue; }
+      if (/^#\s+Medication/i.test(lines[j]))              { inTable = true; continue; }
+      if (!inTable) continue;
+
+      // New medication row starts with 1–2 digit number
+      const rowM = lines[j].match(/^(\d{1,2})\s+(.*)/);
+      if (rowM) {
+        const rest   = rowM[2];
+        const rxM    = rest.match(/(\d{6})/);
+        const rxNum  = rxM ? rxM[1] : '';
+        const medName = rxM
+          ? rest.substring(0, rest.indexOf(rxM[1])).replace(/\s+/g,' ').trim()
+          : rest.replace(/\s+/g,' ').trim();
+
+        // Look ahead for prescriber (LASTNAME, FIRSTNAME pattern)
+        let prescriber = pcp;
+        for (let k = 1; k <= 4 && j+k < lines.length; k++) {
+          const ahead = lines[j+k];
+          if (/^(\d{1,2})\s+/.test(ahead) || /\bDOB\b/i.test(ahead)) break;
+          if (/^[A-Z][a-z]+,\s*[A-Z]/i.test(ahead) || /^[A-Z]{2,},\s*[A-Z]/i.test(ahead)) {
+            prescriber = ahead.trim(); break;
+          }
+        }
+
+        medications.push({ num: rowM[1], medName, rxNum, prescriber, directions: '' });
+      }
+    }
+
+    // Fallback Rx count
+    let rxCount = medications.length;
+    if (!rxCount) {
+      const block = lines.slice(i, Math.min(i+120, lines.length)).join(' ');
+      const nums  = block.match(/\b\d{6}\b/g);
+      rxCount     = nums ? [...new Set(nums)].length : 0;
+    }
+
+    patients.push({ name: formatName(raw), dob, pcp, ageSex, pharmacy, rxCount: medications.length || rxCount, medications });
+  }
+  return patients;
+}
+
+// ── PARSER 1: Manifest Format (Rx Number | Patient Full Name | Dispensed Item | Refrigerate)
+function parseManifestFormat(pageData) {
+  const patientMap = new Map();
+  const order = [];
+
+  for (const pg of pageData) {
+    // Group items into lines by Y
+    const lines = groupIntoLines(pg.items);
+
+    for (const line of lines) {
+      const text = line.map(it => it.text).join(' ').trim();
+      // Skip header row
+      if (/^Rx Number\s+Patient Full Name/i.test(text)) continue;
+      if (/^Signature of recipient/i.test(text)) continue;
+
+      // Look for 6-digit Rx number at the start
+      const rxMatch = text.match(/^(\d{6})\s+(.+)/);
+      if (!rxMatch) continue;
+
+      const rest = rxMatch[2].trim();
+      // Patient name ends before a capitalized medication word
+      // Heuristic: find the split between "Last, First" and the drug name
+      // Pattern: "Lastname, Firstname   DrugName Dose Form" OR "Lastname Firstname DrugName..."
+      
+      let patientName = '';
+      let drugName = '';
+
+      // Check for "Lastname, Firstname" pattern (comma present)
+      const commaMatch = rest.match(/^([A-Z][a-zA-Z\s]+,\s*[A-Z][a-zA-Z\s.]+?)\s{2,}(.+)$/);
+      if (commaMatch) {
+        patientName = commaMatch[1].trim();
+        drugName = commaMatch[2].trim();
+      } else {
+        // Try to split: name is capitalized words, drug starts with a capitalized word followed by a number/unit
+        const parts = rest.split(/\s{2,}/);
+        if (parts.length >= 2) {
+          patientName = parts[0].trim();
+          drugName = parts.slice(1).join(' ').trim();
+        } else {
+          // Last resort: use positional parsing from the page
+          // Find items by X position
+          const rxItem = line.find(it => /^\d{6}$/.test(it.text));
+          if (rxItem) {
+            const afterRx = line.filter(it => it.x > rxItem.x + 50).sort((a,b) => a.x - b.x);
+            // Items with x < midpoint = patient name, x > midpoint = drug
+            if (afterRx.length) {
+              const xs = afterRx.map(it => it.x);
+              const minX = Math.min(...xs), maxX = Math.max(...xs);
+              const mid = minX + (maxX - minX) * 0.35;
+              patientName = afterRx.filter(it => it.x <= mid).map(it => it.text).join(' ').trim();
+              drugName = afterRx.filter(it => it.x > mid).map(it => it.text).join(' ').trim();
+            }
+          }
+        }
+      }
+
+      if (!patientName || patientName.length < 3) continue;
+      // Skip if patientName looks like a drug
+      if (/\d/.test(patientName) || /tablet|capsule|mg|mcg|ml|susp|softgel/i.test(patientName)) continue;
+
+      const key = patientName.toUpperCase().replace(/\s+/g,' ');
+      if (!patientMap.has(key)) {
+        patientMap.set(key, { name: patientName, rxCount: 0, rxNums: [], medications: [] });
+        order.push(key);
+      }
+      const _p = patientMap.get(key);
+      _p.rxCount++;
+      _p.rxNums.push(rxMatch[1]);
+      _p.medications.push({ num: _p.rxCount, medName: drugName, rxNum: rxMatch[1], prescriber: '' });
+    }
+  }
+
+  return order.map(k => patientMap.get(k));
+}
+
+// ── PARSER 2: Full Medication List Format (has DOB lines, patient header blocks)
+function parseMedListFormat(pageData) {
+  const patients = [];
+  const seen = new Set();
+  const SKIP = new Set(['medication','list','cycle','check','date','facility','printed','page','of','pharmacy','allrx','allcare','dazzle','health','current','active','diagnoses','reconciliation','verification','missing','reconciled','by','time','rph','verified','staff','signature','discrepancies','noted','will','reviewed','completed','delivery','driver','pcp','directions','indication','risk','level','prescriber','notes','critical','caution','standard','rx','number','name','fridge','dob','age','sex']);
+
+  for (const pg of pageData) {
+    const lines = groupIntoLines(pg.items);
+
+    for (let li = 0; li < lines.length; li++) {
+      const lineText = lines[li].map(it => it.text).join(' ').trim();
+
+      // DOB may be on the SAME line as the patient name (new Cycle Check format)
+      // or on one of the next 4 lines (classic format)
+      const dobOnSameLine = /\bDOB\b/i.test(lineText) || /\b\d{2}\/\d{2}\/\d{4}\b/.test(lineText);
+      let dobFound = dobOnSameLine, dobLineIdx = dobOnSameLine ? li : -1;
+      if (!dobFound) {
+        for (let fwd = 1; fwd <= 4 && li + fwd < lines.length; fwd++) {
+          const fwdText = lines[li + fwd].map(it => it.text).join(' ');
+          if (/\bDOB\b/i.test(fwdText) || /\b\d{2}\/\d{2}\/\d{4}\b/.test(fwdText)) {
+            dobFound = true; dobLineIdx = li + fwd; break;
+          }
+        }
+      }
+      if (!dobFound) continue;
+
+      // When DOB is on same line, extract only the text before "DOB" as the name
+      let rawNameSrc = lineText;
+      if (dobOnSameLine) {
+        const di = lineText.search(/\bDOB\b/i);
+        if (di > 0) rawNameSrc = lineText.substring(0, di);
+      }
+      const name = rawNameSrc.replace(/[^a-zA-Z\s,.''\-]/g,'').replace(/\s+/g,' ').trim();
+      if (name.length < 3 || name.split(' ').length > 6) continue;
+      if (name.toLowerCase().split(/\s+/).some(w => SKIP.has(w))) continue;
+      if (/^\d/.test(name)) continue;
+
+      const nameKey = name.toUpperCase().replace(/\s+/g,' ');
+      if (seen.has(nameKey)) continue;
+      seen.add(nameKey);
+
+      // Extract patient metadata — check same line first (Cycle Check format), then next 8 lines
+      let dob = '', pcp = '', ageSex = '', pharmacy = '';
+      const metaSources = dobOnSameLine
+        ? [lineText, ...Array.from({length:8},(_,i)=> li+1+i < lines.length ? lines[li+1+i].map(it=>it.text).join(' ') : '')]
+        : Array.from({length:8},(_,i)=> li+1+i < lines.length ? lines[li+1+i].map(it=>it.text).join(' ') : '');
+      for (const t of metaSources) {
+        if (!dob)     { const m = t.match(/DOB\s+([\d\/]+)/i);                              if (m) dob      = m[1]; }
+        if (!pcp)     { const m = t.match(/PCP\s+(.+?)(?:\s{3,}|PHARMACY|$)/i);             if (m) pcp      = m[1].trim(); }
+        if (!ageSex)  { const m = t.match(/AGE\s*[\/]\s*SEX\s+(\d+\s*[|]\s*[MF])/i);       if (m) ageSex   = m[1].trim(); }
+        if (!pharmacy){ const m = t.match(/PHARMACY\s+(\S+(?:\s+\S+)?)/i);                  if (m) pharmacy = m[1].trim(); }
+      }
+
+      // Find the medication table header row and detect column X positions
+      let tableHeaderIdx = -1;
+      const colX = {};
+      for (let fwd = 1; fwd < 60 && li + fwd < lines.length; fwd++) {
+        const items = lines[li + fwd];
+        const t = items.map(it => it.text).join(' ');
+        if ((/Medication.{0,15}Name/i.test(t) || /\bMedication\b/i.test(t)) && (/Prescriber/i.test(t) || /\bNumber\b/i.test(t))) {
+          tableHeaderIdx = li + fwd;
+          items.forEach(it => {
+            const k = it.text.toLowerCase().replace(/\s/g,'');
+            if      (k === '#')                                        colX.num        = it.x;
+            else if (k.includes('medication') || k === 'name')        colX.medName    = it.x;
+            else if (k.includes('rx') || k.includes('number'))        colX.rxNum      = it.x;
+            else if (k.includes('direction'))                          colX.directions = it.x;
+            else if (k.includes('indication'))                         colX.indication = it.x;
+            else if (k.includes('risk'))                               colX.risk       = it.x;
+            else if (k.includes('prescriber'))                         colX.prescriber = it.x;
+          });
+          break;
+        }
+      }
+
+      // Parse individual medication rows
+      const medications = [];
+      if (tableHeaderIdx > 0) {
+        let cur = null;
+        for (let fwd = tableHeaderIdx + 1; fwd < lines.length; fwd++) {
+          const fwdItems = lines[fwd];
+          if (!fwdItems.length) continue;
+
+          // Stop when next patient header begins
+          let stop = false;
+          for (let ff = 1; ff <= 3 && fwd + ff < lines.length; ff++) {
+            if (/\bDOB\b/i.test(lines[fwd + ff].map(it => it.text).join(' '))) { stop = true; break; }
+          }
+          if (stop) break;
+
+          const rowText = fwdItems.map(it => it.text).join(' ');
+          if (/Page\s+\d+\s+of\s+\d+/i.test(rowText)) continue;
+
+          const sorted = [...fwdItems].sort((a, b) => a.x - b.x);
+          const first  = sorted[0];
+          const isNewRow = first && /^\d{1,2}$/.test(first.text.trim()) &&
+                           (colX.num === undefined || Math.abs(first.x - (colX.num || 50)) < 60);
+
+          if (isNewRow) {
+            if (cur && cur.medName) medications.push(cur);
+            cur = { num: first.text.trim(), medName: '', rxNum: '', directions: '', prescriber: pcp, indication: '' };
+            sorted.slice(1).forEach(it => {
+              if (/Critical|Caution|Standard/i.test(it.text)) return;
+              mapItemToMed(it, cur, colX);
+            });
+          } else if (cur) {
+            sorted.forEach(it => {
+              if (/Critical|Caution|Standard/i.test(it.text)) return;
+              if (/^\d{1,2}$/.test(it.text.trim()) && Math.abs(it.x - (colX.num || 50)) < 40) return;
+              mapItemToMed(it, cur, colX);
+            });
+          }
+        }
+        if (cur && cur.medName) medications.push(cur);
+      }
+
+      // Fallback: count bare 6-digit Rx numbers if table parse yielded nothing
+      let rxCount = medications.length;
+      if (!rxCount) {
+        for (let fwd = 1; fwd < 80 && li + fwd < lines.length; fwd++) {
+          if (fwd > 5) {
+            let nx = false;
+            for (let ff = 1; ff <= 3 && li+fwd+ff < lines.length; ff++) {
+              if (/\bDOB\b/i.test(lines[li+fwd+ff].map(it=>it.text).join(' '))) { nx = true; break; }
+            }
+            if (nx) break;
+          }
+          const nums = lines[li+fwd].map(it=>it.text).join(' ').match(/\b\d{6}\b/g);
+          if (nums) rxCount += nums.length;
+        }
+      }
+
+      patients.push({ name: formatName(name), dob, pcp, ageSex, pharmacy, rxCount: medications.length || rxCount, medications });
+    }
+  }
+  return patients;
+}
+
+function mapItemToMed(item, med, colX) {
+  const x = item.x, text = item.text.trim();
+  if (!text) return;
+  const cols = Object.entries(colX).filter(([k]) => k !== 'num' && k !== 'risk').sort((a,b) => a[1]-b[1]);
+  if (cols.length) {
+    for (let i = 0; i < cols.length; i++) {
+      const [col, cx] = cols[i];
+      const nextX = i+1 < cols.length ? cols[i+1][1] : Infinity;
+      if (x >= cx - 15 && x < nextX - 5) {
+        if      (col === 'medName')    { med.medName    += (med.medName    ? ' ':'')+text; return; }
+        else if (col === 'rxNum')      { if (/^\d{6}$/.test(text)) med.rxNum = text; return; }
+        else if (col === 'directions') { med.directions += (med.directions ? ' ':'')+text; return; }
+        else if (col === 'indication') { med.indication += (med.indication ? ' ':'')+text; return; }
+        else if (col === 'prescriber') { med.prescriber += (med.prescriber ? ' ':'')+text; return; }
+      }
+    }
+  }
+  // Fallback positional heuristics
+  if (/^\d{6}$/.test(text))       { med.rxNum = text; return; }
+  if (x < 150)                    { med.medName    += (med.medName    ? ' ':'')+text; return; }
+  if (x > 450)                    { med.prescriber += (med.prescriber ? ' ':'')+text; return; }
+  if (x > 250)                    { med.directions += (med.directions ? ' ':'')+text; }
+}
+
+function groupIntoLines(items) {
+  const lines = [];
+  let cur = [], lastY = -9999;
+  const sorted = [...items].sort((a,b) => a.y - b.y || a.x - b.x);
+  for (const item of sorted) {
+    if (Math.abs(item.y - lastY) > 5) {
+      if (cur.length) lines.push(cur);
+      cur = [item]; lastY = item.y;
+    } else {
+      cur.push(item);
+    }
+  }
+  if (cur.length) lines.push(cur);
+  return lines;
+}
+
+function formatName(raw) {
+  return raw.trim().split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : '').join(' ').replace(/\b(Jr|Sr|Ii|Iii|Iv)\b/g, s => s.toUpperCase());
+}
+
+function showPreview(patients, fmt) {
+  const totalRx = patients.reduce((s,p) => s+p.rxCount, 0);
+  const fmtLabel = fmt === 'manifest' ? 'Manifest format' : fmt === 'medlist' ? 'Medication List format' : fmt === 'ocr' ? 'Scanned PDF — OCR' : fmt === 'spreadsheet' ? 'Excel / CSV' : 'Auto-detected';
+  document.getElementById('parse-status').innerHTML = `<div class="status success">✓ Found ${patients.length} patients · <span class="format-badge">${fmtLabel}</span></div>`;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-box"><div class="lbl">Patients</div><div class="val">${patients.length}</div></div>
+    <div class="stat-box"><div class="lbl">Total Rx</div><div class="val">${totalRx}</div></div>
+    <div class="stat-box"><div class="lbl">Avg Rx</div><div class="val">${patients.length ? (totalRx/patients.length).toFixed(1) : 0}</div></div>`;
+  document.getElementById('preview-tbody').innerHTML = patients.map((p,i) => `
+    <tr><td style="color:#718096">${i+1}</td><td style="font-weight:500">${p.name}</td><td><span class="badge">${p.rxCount} Rx</span></td></tr>`).join('');
+  document.getElementById('preview').style.display = 'block';
+}
+
+function generateExcel(fmt) {
+  if (!parsedData) return;
+  fmt = fmt || 'xlsx';
+  const btnId = fmt === 'xls' ? 'gen-xls-btn' : 'gen-btn';
+  const btn = document.getElementById(btnId);
+  btn.disabled = true; btn.textContent = 'Generating…';
+
+  try {
+    const facility  = document.getElementById('facility-name').value || 'ALF Facility';
+    const cdRaw     = document.getElementById('cycle-date').value;
+    const cycleDate = cdRaw ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const startTime = document.getElementById('start-time').value || '';
+    const endTime   = document.getElementById('end-time').value   || '';
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, makeReconSheet(parsedData, facility, cycleDate, startTime, endTime), 'Med Cart Recon Form');
+    XLSX.utils.book_append_sheet(wb, makeMedListSheet(parsedData, facility, cycleDate), 'Medication List');
+    XLSX.utils.book_append_sheet(wb, makeVisitLog(facility), 'Visit Log');
+    XLSX.utils.book_append_sheet(wb, makeSummary(parsedData, facility, cycleDate), 'Patient Summary');
+
+    const safe = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+    const ext   = fmt === 'xls' ? 'xls' : 'xlsx';
+    const fname = `MedCartRecon_${safe}_${cycleDate.replace(/[\s,]/g,'_')}.${ext}`;
+    XLSX.writeFile(wb, fname, { bookType: ext });
+    showResult(fname, null, parsedData.length, parsedData.reduce((s,p)=>s+p.rxCount,0));
+  } catch(e) {
+    showError('Excel generation failed: ' + e.message);
+    btn.disabled = false; btn.textContent = fmt === 'xls' ? '📊 .xls' : '📊 .xlsx';
+  }
+}
+
+function sc(ws, r, c, v, s) {
+  const a = XLSX.utils.encode_cell({r,c});
+  ws[a] = { v, t: typeof v === 'number' ? 'n' : 's', s: s||{} };
+}
+function T(bold,sz,color){ return {name:'DM Sans',bold:!!bold,sz:sz||10,color:{rgb:color||'000000'}}; }
+function F(color){ return {fgColor:{rgb:color||'FFFFFF'}}; }
+function A(h,v,wrap){ return {horizontal:h||'left',vertical:v||'center',wrapText:!!wrap}; }
+function B(t,b,l,r){ const s=c=>({style:'thin',color:{rgb:c||'CCCCCC'}}); const m=c=>({style:'medium',color:{rgb:c||'1E5631'}}); return {top:t?m(t):s(),bottom:b?m(b):s(),left:l?m(l):s(),right:r?m(r):s()}; }
+
+function makeReconSheet(patients, facility, cycleDate, startTime, endTime) {
+  const ws = {}; const M = []; let r = 0;
+  const green='1E5631', mgreen='2E7D32', lgreen='E8F5EC', white='FFFFFF', navy='1F3864';
+  const medB = B(green,green,green,green);
+  const thinB = {top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}};
+  function mkRowBorder(c){ return {top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:c===0||c===11?{style:'medium',color:{rgb:green}}:{style:'thin',color:{rgb:'CCCCCC'}},right:c===0||c===11?{style:'medium',color:{rgb:green}}:{style:'thin',color:{rgb:'CCCCCC'}}}; }
+
+  sc(ws,r,0,`MEDICATION CART RECONCILIATION — ${facility.toUpperCase()}`,{font:T(true,13,white),fill:F(green),alignment:A('center'),border:medB}); for(let c=1;c<=11;c++) sc(ws,r,c,'',{fill:F(green),border:medB}); M.push({s:{r,c:0},e:{r,c:11}}); r++;
+  sc(ws,r,0,`Dazzle Health PC · AllRx · AllCare Multi-Service Care Program · Cycle: ${cycleDate}`,{font:{name:'DM Sans',sz:9,italic:true,color:{rgb:'A5D6A7'}},fill:F(green),alignment:A('center')}); M.push({s:{r,c:0},e:{r,c:11}}); for(let c=1;c<=11;c++) sc(ws,r,c,'',{fill:F(green)}); r++; r++;
+
+  sc(ws,r,0,'Facility:',{font:T(true,9,green),fill:F(lgreen),alignment:A('right'),border:thinB}); sc(ws,r,1,facility,{font:T(false,9,'2d3748'),fill:F(white),border:thinB}); M.push({s:{r,c:1},e:{r,c:2}}); sc(ws,r,2,'',{fill:F(white),border:thinB});
+  sc(ws,r,3,'Visit Date:',{font:T(true,9,green),fill:F(lgreen),alignment:A('right'),border:thinB}); sc(ws,r,4,'',{fill:F(white),border:thinB}); M.push({s:{r,c:4},e:{r,c:5}}); sc(ws,r,5,'',{fill:F(white),border:thinB});
+  sc(ws,r,6,'MSC Provider:',{font:T(true,9,green),fill:F(lgreen),alignment:A('right'),border:thinB}); for(let c=7;c<=11;c++) sc(ws,r,c,'',{fill:F(white),border:thinB}); M.push({s:{r,c:7},e:{r,c:11}}); r++;
+  sc(ws,r,0,'Cycle Date:',{font:T(true,9,green),fill:F(lgreen),alignment:A('right'),border:thinB}); sc(ws,r,1,cycleDate,{font:T(false,9,'2d3748'),fill:F(white),border:thinB}); M.push({s:{r,c:1},e:{r,c:2}}); sc(ws,r,2,'',{fill:F(white),border:thinB});
+  sc(ws,r,3,'Start Time:',{font:T(true,9,green),fill:F(lgreen),alignment:A('right'),border:thinB}); sc(ws,r,4,startTime||'',{font:T(false,9,'2d3748'),fill:F(white),border:thinB}); M.push({s:{r,c:4},e:{r,c:5}}); sc(ws,r,5,'',{fill:F(white),border:thinB});
+  sc(ws,r,6,'End Time:',{font:T(true,9,green),fill:F(lgreen),alignment:A('right'),border:thinB}); sc(ws,r,7,endTime||'',{font:T(false,9,'2d3748'),fill:F(white),border:thinB}); M.push({s:{r,c:7},e:{r,c:8}}); for(let c=8;c<=11;c++) sc(ws,r,c,'',{fill:F(white),border:thinB}); r++;
+
+  sc(ws,r,0,'Visit Type:',{font:T(true,9,green),fill:F(lgreen),alignment:A('right'),border:thinB});
+  sc(ws,r,1,'☐  Combined with Cycle Check          ☐  Standalone Med Cart Recon Visit',{font:T(false,9,'2d3748'),fill:F(white),border:thinB}); M.push({s:{r,c:1},e:{r,c:11}});
+  for(let c=2;c<=11;c++) sc(ws,r,c,'',{fill:F(white),border:thinB}); r++; r++;
+
+  const hdrs=['#','Patient Name','Rx Number','Medication Name','Cart\nQty','Manifest\nQty','Qty\nMatch?','Label\nCorrect?','Expiry\nOK?','Discrepancy?','Notes / Action Taken','Resolved?','Start\nTime','End\nTime'];
+  hdrs.forEach((h,c) => sc(ws,r,c,h,{font:T(true,9,white),fill:F(mgreen),alignment:A('center','center',true),border:{top:{style:'medium',color:{rgb:green}},bottom:{style:'medium',color:{rgb:green}},left:c===0?{style:'medium',color:{rgb:green}}:{style:'thin',color:{rgb:'CCCCCC'}},right:c===11?{style:'medium',color:{rgb:green}}:{style:'thin',color:{rgb:'CCCCCC'}}}}));
+  r++;
+
+  patients.forEach((p,idx) => {
+    const rf = idx%2===0 ? lgreen : white;
+    sc(ws,r,0,idx+1,{font:T(true,9,green),fill:F(rf),alignment:A('center'),border:mkRowBorder(0)});
+    sc(ws,r,1,p.name,{font:T(true,9,navy),fill:F(rf),alignment:A('left'),border:mkRowBorder(1)});
+    for(let c=2;c<=5;c++) sc(ws,r,c,'',{font:T(false,9),fill:F(rf),alignment:A('center'),border:mkRowBorder(c)});
+    for(let c=6;c<=9;c++) sc(ws,r,c,'☐ Y   ☐ N',{font:{name:'DM Mono',sz:8,color:{rgb:'555555'}},fill:F(rf),alignment:A('center'),border:mkRowBorder(c)});
+    sc(ws,r,10,'',{fill:F(rf),alignment:A('left','center',true),border:mkRowBorder(10)});
+    sc(ws,r,11,'☐ Y   ☐ N/A',{font:{name:'DM Mono',sz:8,color:{rgb:'555555'}},fill:F(rf),alignment:A('center'),border:mkRowBorder(11)});
+    sc(ws,r,12,'',{fill:F(rf),alignment:A('center'),border:thinB});
+    sc(ws,r,13,'',{fill:F(rf),alignment:A('center'),border:thinB});
+    r++;
+  });
+
+  r++;
+  [[mgreen,'MSC PROVIDER SIGN-OFF'],['1F3864','CHARGE NURSE SIGN-OFF']].forEach(([clr,title]) => {
+    sc(ws,r,0,title,{font:T(true,10,white),fill:F(clr),alignment:A('center'),border:B(clr,clr,clr,clr)}); M.push({s:{r,c:0},e:{r,c:11}}); for(let c=1;c<=11;c++) sc(ws,r,c,'',{fill:F(clr)}); r++;
+    let col=0;
+    [['Name:',3],['Signature:',3],['Date:',2],['Time:',2]].forEach(([lbl,w])=>{
+      sc(ws,r,col,lbl,{font:T(true,9,white),fill:F(clr),alignment:A('left')}); if(w>1) M.push({s:{r,c:col},e:{r,c:col+w-1}});
+      sc(ws,r+1,col,'',{fill:F(white),border:{left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}},top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'medium',color:{rgb:clr}}}}); if(w>1) M.push({s:{r:r+1,c:col},e:{r:r+1,c:col+w-1}});
+      col+=w;
+    }); r+=2;
+  });
+
+  // ── Discrepancy Section ──────────────────────────────────────────
+  r++;
+  const discHdr = (label) => {
+    sc(ws,r,0,label,{font:T(true,10,white),fill:F('C0392B'),alignment:A('left','center'),border:B('C0392B','C0392B','C0392B','C0392B')});
+    M.push({s:{r,c:0},e:{r,c:11}}); for(let c=1;c<=11;c++) sc(ws,r,c,'',{fill:F('C0392B')}); r++;
+    ['#','Patient Name','Medication Name','Rx Number','Found / Missing Location','Notes','Action Taken'].forEach((h,ci)=>{
+      const widths=[0,1,2,3,4,5,6]; // cols to use
+      sc(ws,r,ci,h,{font:T(true,9,white),fill:F(mgreen),alignment:A('center','center'),border:thinB});
+    });
+    for(let c=7;c<=11;c++) sc(ws,r,c,'',{fill:F(mgreen),border:thinB}); M.push({s:{r,c:4},e:{r,c:5}}); M.push({s:{r,c:6},e:{r,c:8}}); M.push({s:{r,c:9},e:{r,c:11}}); r++;
+    for(let i=0;i<5;i++){
+      const rf=i%2===0?lgreen:white;
+      [0,1,2,3].forEach(c=>sc(ws,r,c,'',{fill:F(rf),border:thinB}));
+      M.push({s:{r,c:4},e:{r,c:5}}); sc(ws,r,4,'',{fill:F(rf),border:thinB}); sc(ws,r,5,'',{fill:F(rf),border:thinB});
+      M.push({s:{r,c:6},e:{r,c:8}}); for(let c=6;c<=8;c++) sc(ws,r,c,'',{fill:F(rf),border:thinB});
+      M.push({s:{r,c:9},e:{r,c:11}}); for(let c=9;c<=11;c++) sc(ws,r,c,'',{fill:F(rf),border:thinB});
+      sc(ws,r,0,i+1,{font:T(true,9,green),fill:F(rf),alignment:A('center'),border:thinB}); r++;
+    }
+  };
+  discHdr('⚠  IN CART — NOT ON MED LIST  (medications found in cart that are not in the system)');
+  r++;
+  discHdr('⚠  ON MED LIST — NOT IN CART  (medications in the system that are missing from the cart)');
+  r++;
+
+  sc(ws,r,0,'Combined visit: attach to Medication List. Standalone: file under Med Cart Recon service records.',{font:{name:'DM Sans',sz:8,italic:true,color:{rgb:'666666'}},fill:F(lgreen),alignment:A('left','center',true),border:B(green,green,green,green)}); M.push({s:{r,c:0},e:{r,c:11}}); for(let c=1;c<=11;c++) sc(ws,r,c,'',{fill:F(lgreen)}); r++;
+  sc(ws,r,0,`MCR-001 · Dazzle Health PC · AllRx · ${facility} · Cycle: ${cycleDate} · CONFIDENTIAL`,{font:{name:'DM Sans',sz:8,italic:true,color:{rgb:'888888'}},alignment:A('center')}); M.push({s:{r,c:0},e:{r,c:11}});
+
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r,c:13}});
+  ws['!merges']=M;
+  ws['!cols']=[{wch:4},{wch:26},{wch:12},{wch:32},{wch:9},{wch:10},{wch:10},{wch:11},{wch:10},{wch:12},{wch:28},{wch:12},{wch:12},{wch:12}];
+  ws['!rows']=[{hpt:36},{hpt:16},{hpt:6},{hpt:22},{hpt:22},{hpt:6},{hpt:30},...Array(patients.length).fill({hpt:20}),...Array(20).fill({hpt:20})];
+  return ws;
+}
+
+function makeVisitLog(facility) {
+  const ws={}; const M=[];
+  function sc2(r,c,v,s){const a=XLSX.utils.encode_cell({r,c});ws[a]={v,t:typeof v==='number'?'n':'s',s:s||{}};}
+  const thin={top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}};
+  const hdrs=['Visit Date','Cycle #','Visit Type','MSC Provider','Patients','Meds Verified','Discrepancies','Resolved?','Charge Nurse','Notes'];
+  sc2(0,0,`MED CART RECON — VISIT LOG · ${facility}`,{font:{name:'DM Sans',bold:true,sz:12,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1E5631'}},alignment:{horizontal:'center',vertical:'center'}});
+  M.push({s:{r:0,c:0},e:{r:0,c:9}}); for(let c=1;c<10;c++) sc2(0,c,'',{fill:{fgColor:{rgb:'1E5631'}}});
+  hdrs.forEach((h,c)=>sc2(1,c,h,{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'2E7D32'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:thin}));
+  for(let i=0;i<25;i++){const rf=i%2===0?'E8F5EC':'FFFFFF';for(let c=0;c<10;c++){const v=c===2?'☐ Combined  ☐ Standalone':c===7?'☐ Y  ☐ N':'';sc2(i+2,c,v,{font:{name:'DM Sans',sz:c===2||c===7?8:9},fill:{fgColor:{rgb:rf}},alignment:{horizontal:c===2||c===7?'center':'left',vertical:'center'},border:thin});}}
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:27,c:9}});
+  ws['!merges']=M;
+  ws['!cols']=[{wch:13},{wch:10},{wch:26},{wch:22},{wch:12},{wch:14},{wch:14},{wch:12},{wch:22},{wch:28}];
+  ws['!rows']=[{hpt:30},{hpt:32},...Array(25).fill({hpt:18})];
+  return ws;
+}
+
+function makeSummary(patients, facility, cycleDate) {
+  const ws={}; const M=[];
+  function sc3(r,c,v,s){const a=XLSX.utils.encode_cell({r,c});ws[a]={v,t:typeof v==='number'?'n':'s',s:s||{}};}
+  const thin={top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}};
+  sc3(0,0,`PATIENT SUMMARY — ${facility} · Cycle: ${cycleDate}`,{font:{name:'DM Sans',bold:true,sz:12,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1E5631'}},alignment:{horizontal:'center',vertical:'center'}});
+  M.push({s:{r:0,c:0},e:{r:0,c:3}}); for(let c=1;c<=3;c++) sc3(0,c,'',{fill:{fgColor:{rgb:'1E5631'}}});
+  ['#','Patient Name','Rx Count','Notes'].forEach((h,c)=>sc3(1,c,h,{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'2E7D32'}},alignment:{horizontal:'center',vertical:'center'},border:thin}));
+  patients.forEach((p,i)=>{const rf=i%2===0?'E8F5EC':'FFFFFF';sc3(i+2,0,i+1,{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:'1E5631'}},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'center'},border:thin});sc3(i+2,1,p.name,{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:'1F3864'}},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'left',vertical:'center'},border:thin});sc3(i+2,2,p.rxCount,{font:{name:'DM Sans',sz:9},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'center'},border:thin});sc3(i+2,3,'',{fill:{fgColor:{rgb:rf}},border:thin});});
+  const tr=patients.length+2;
+  ['TOTAL',`${patients.length} patients`,patients.reduce((s,p)=>s+p.rxCount,0),''].forEach((v,c)=>sc3(tr,c,v,{font:{name:'DM Sans',bold:true,sz:10,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1E5631'}},alignment:{horizontal:'center',vertical:'center'},border:{top:{style:'medium',color:{rgb:'1E5631'}},bottom:{style:'medium',color:{rgb:'1E5631'}},left:c===0?{style:'medium',color:{rgb:'1E5631'}}:{style:'thin',color:{rgb:'CCCCCC'}},right:c===3?{style:'medium',color:{rgb:'1E5631'}}:{style:'thin',color:{rgb:'CCCCCC'}}}}));
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:tr,c:3}});
+  ws['!merges']=M;
+  ws['!cols']=[{wch:5},{wch:30},{wch:12},{wch:30}];
+  ws['!rows']=[{hpt:30},{hpt:28},...Array(patients.length+1).fill({hpt:18})];
+  return ws;
+}
+
+function makeMedListSheet(patients, facility, cycleDate) {
+  const ws = {}; const M = []; let r = 0;
+  const purple='553C9A', mpurple='6B4DB5', lpurple='F0EBFF', white='FFFFFF', navy='1F3864';
+  const thinB = {top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}};
+  const medB  = {top:{style:'medium',color:{rgb:purple}},bottom:{style:'medium',color:{rgb:purple}},left:{style:'medium',color:{rgb:purple}},right:{style:'medium',color:{rgb:purple}}};
+  function scp(r,c,v,s){const a=XLSX.utils.encode_cell({r,c});ws[a]={v,t:typeof v==='number'?'n':'s',s:s||{}};}
+
+  // ── Title bar ──────────────────────────────────────────────────────
+  scp(r,0,`MEDICATION LIST — ${facility.toUpperCase()}`,{font:{name:'DM Sans',bold:true,sz:13,color:{rgb:white}},fill:{fgColor:{rgb:purple}},alignment:{horizontal:'center',vertical:'center'},border:medB});
+  for(let c=1;c<=10;c++) scp(r,c,'',{fill:{fgColor:{rgb:purple}},border:medB}); M.push({s:{r,c:0},e:{r,c:10}}); r++;
+  scp(r,0,`Dazzle Health PC · AllRx · AllCare Multi-Service Care Program · Cycle: ${cycleDate}`,{font:{name:'DM Sans',sz:9,italic:true,color:{rgb:'C4B5FD'}},fill:{fgColor:{rgb:purple}},alignment:{horizontal:'center'}});
+  for(let c=1;c<=10;c++) scp(r,c,'',{fill:{fgColor:{rgb:purple}}}); M.push({s:{r,c:0},e:{r,c:10}}); r++; r++;
+
+  // ── Info row ───────────────────────────────────────────────────────
+  scp(r,0,'Facility:',{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:purple}},fill:{fgColor:{rgb:lpurple}},alignment:{horizontal:'right'},border:thinB});
+  scp(r,1,facility,{font:{name:'DM Sans',sz:9},fill:{fgColor:{rgb:white}},border:thinB}); M.push({s:{r,c:1},e:{r,c:2}}); scp(r,2,'',{fill:{fgColor:{rgb:white}},border:thinB});
+  scp(r,3,'Cycle Date:',{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:purple}},fill:{fgColor:{rgb:lpurple}},alignment:{horizontal:'right'},border:thinB});
+  scp(r,4,cycleDate,{font:{name:'DM Sans',sz:9},fill:{fgColor:{rgb:white}},border:thinB}); M.push({s:{r,c:4},e:{r,c:5}}); scp(r,5,'',{fill:{fgColor:{rgb:white}},border:thinB});
+  scp(r,6,'MSC Provider:',{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:purple}},fill:{fgColor:{rgb:lpurple}},alignment:{horizontal:'right'},border:thinB});
+  for(let c=7;c<=10;c++) scp(r,c,'',{fill:{fgColor:{rgb:white}},border:thinB}); M.push({s:{r,c:7},e:{r,c:10}}); r++; r++;
+
+  // ── Column headers ─────────────────────────────────────────────────
+  ['#','Patient Name','Medication Name','Rx Number','Directions / SIG','Indication','Risk Level','Prescriber','Fridge\nCheck','Verified','Notes'].forEach((h,c) => {
+    scp(r,c,h,{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:white}},fill:{fgColor:{rgb:mpurple}},alignment:{horizontal:'center',vertical:'center',wrapText:true},
+      border:{top:{style:'medium',color:{rgb:purple}},bottom:{style:'medium',color:{rgb:purple}},left:c===0?{style:'medium',color:{rgb:purple}}:{style:'thin',color:{rgb:'CCCCCC'}},right:c===10?{style:'medium',color:{rgb:purple}}:{style:'thin',color:{rgb:'CCCCCC'}}}});
+  }); r++;
+
+  // ── Medication rows ────────────────────────────────────────────────
+  let rowNum = 0;
+  patients.forEach((patient, pIdx) => {
+    const meds = (patient.medications && patient.medications.length)
+      ? patient.medications
+      : Array.from({length:patient.rxCount||0},(_,i)=>({num:i+1,medName:'',rxNum:patient.rxNums?.[i]||'',prescriber:patient.pcp||'',directions:''}));
+
+    const rf = pIdx % 2 === 0 ? lpurple : white;
+    meds.forEach((m, mi) => {
+      rowNum++;
+      const isFirst = mi === 0;
+      // # col
+      scp(r,0,rowNum,{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:purple}},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'center',vertical:'center'},border:thinB});
+      // Patient name — only on first med row for this patient
+      scp(r,1,isFirst ? patient.name : '',{font:{name:'DM Sans',bold:isFirst,sz:9,color:{rgb:isFirst?navy:'555555'}},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'left',vertical:'center'},border:thinB});
+      // Med name
+      scp(r,2,m.medName||'',{font:{name:'DM Sans',sz:9},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'left',vertical:'center',wrapText:true},border:thinB});
+      // Rx#
+      scp(r,3,m.rxNum||'',{font:{name:'DM Sans',sz:9},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'center',vertical:'center'},border:thinB});
+      // Directions
+      scp(r,4,m.directions||'',{font:{name:'DM Sans',sz:9},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'left',vertical:'center',wrapText:true},border:thinB});
+      // Indication (blank write-in)
+      scp(r,5,'',{fill:{fgColor:{rgb:rf}},border:thinB});
+      // Risk Level
+      scp(r,6,'☐ Critical   ☐ Caution   ☐ Standard',{font:{name:'DM Mono',sz:8,color:{rgb:'555555'}},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'left',vertical:'center'},border:thinB});
+      // Prescriber
+      scp(r,7,m.prescriber||'',{font:{name:'DM Sans',sz:9},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'left',vertical:'center'},border:thinB});
+      // Fridge Check
+      scp(r,8,'☐ Y   ☐ N',{font:{name:'DM Mono',sz:8,color:{rgb:'555555'}},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'center',vertical:'center'},border:thinB});
+      // Verified
+      scp(r,9,'☐ Y   ☐ N',{font:{name:'DM Mono',sz:8,color:{rgb:'555555'}},fill:{fgColor:{rgb:rf}},alignment:{horizontal:'center',vertical:'center'},border:thinB});
+      // Notes
+      scp(r,10,'',{fill:{fgColor:{rgb:rf}},alignment:{horizontal:'left',vertical:'center',wrapText:true},border:thinB});
+      r++;
+    });
+    // Patient subtotal divider
+    scp(r,0,'',{fill:{fgColor:{rgb:lpurple}},border:{bottom:{style:'thin',color:{rgb:mpurple}}}}); M.push({s:{r,c:0},e:{r,c:10}});
+    for(let c=1;c<=10;c++) scp(r,c,'',{fill:{fgColor:{rgb:lpurple}},border:{bottom:{style:'thin',color:{rgb:mpurple}}}});
+    r++;
+  });
+
+  // ── Footer ─────────────────────────────────────────────────────────
+  r++;
+  scp(r,0,`Total: ${rowNum} medications across ${patients.length} patients`,{font:{name:'DM Sans',bold:true,sz:9,color:{rgb:white}},fill:{fgColor:{rgb:purple}},alignment:{horizontal:'left',vertical:'center'},border:medB});
+  for(let c=1;c<=10;c++) scp(r,c,'',{fill:{fgColor:{rgb:purple}},border:medB}); M.push({s:{r,c:0},e:{r,c:10}});
+
+  ws['!ref']    = XLSX.utils.encode_range({s:{r:0,c:0},e:{r,c:10}});
+  ws['!merges'] = M;
+  ws['!cols']   = [{wch:4},{wch:22},{wch:28},{wch:12},{wch:32},{wch:16},{wch:30},{wch:24},{wch:12},{wch:12},{wch:24}];
+  ws['!rows']   = [{hpt:36},{hpt:16},{hpt:6},{hpt:22},{hpt:6},{hpt:30},...Array(rowNum+patients.length+2).fill({hpt:20})];
+  return ws;
+}
+
+function generateCSV() {
+  if (!parsedData) return;
+  const btn = document.getElementById('gen-csv-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  try {
+    const facility  = document.getElementById('facility-name').value || 'ALF Facility';
+    const cdRaw     = document.getElementById('cycle-date').value;
+    const cycleDate = cdRaw
+      ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+    const rows = [['Facility','Cycle Date','Patient Name','DOB','PCP','#','Medication Name','Rx Number','Prescriber','Directions','Cart Qty','Manifest Qty','Qty Match?','Label Correct?','Expiry OK?','Discrepancy/Notes','Resolved?']];
+    parsedData.forEach(p => {
+      const meds = p.medications && p.medications.length
+        ? p.medications
+        : Array.from({length: p.rxCount||0}, (_,i) => ({num:i+1, medName:'', rxNum:p.rxNums?.[i]||'', prescriber:p.pcp||'', directions:''}));
+      if (!meds.length) {
+        rows.push([facility, cycleDate, p.name, p.dob||'', p.pcp||'', '', '', '', '', '', '', '', '', '', '', '', '']);
+      } else {
+        meds.forEach(m => rows.push([facility, cycleDate, p.name, p.dob||'', p.pcp||'', m.num||'', m.medName||'', m.rxNum||'', m.prescriber||'', m.directions||'', '', '', '', '', '', '', '']));
+      }
+    });
+
+    const ws  = XLSX.utils.aoa_to_sheet(rows);
+    const wb  = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Med Cart Recon');
+    const safe  = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+    const fname = `MedCartRecon_${safe}_${cycleDate.replace(/[\s,]/g,'_')}.csv`;
+    XLSX.writeFile(wb, fname, { bookType: 'csv' });
+    showResult(fname, null, parsedData.length, parsedData.reduce((s,p)=>s+p.rxCount,0));
+  } catch(e) {
+    showError('CSV generation failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '📋 .csv';
+  }
+}
+
+// ── COMPARISON EXCEL GENERATOR ────────────────────────────────────────────
+function generateComparisonExcel() {
+  if (!comparisonResult || !parsedDataA) return;
+  const btn = document.getElementById('gen-comp-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  try {
+    const facility  = document.getElementById('facility-name').value || facilityNameA || 'Facility';
+    const cdRaw     = document.getElementById('cycle-date').value;
+    const cycleDate = cdRaw
+      ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Changes
+    XLSX.utils.book_append_sheet(wb, makeDiffSheet(comparisonResult, facility, cycleDate), 'Med Cart Changes');
+    // Sheet 2: Full Manifest (current)
+    XLSX.utils.book_append_sheet(wb, makeReconSheet(parsedDataA, facility, cycleDate,
+      document.getElementById('start-time').value||'',
+      document.getElementById('end-time').value||''), 'Full Manifest');
+    // Sheet 3: Previous Cycle Reference
+    XLSX.utils.book_append_sheet(wb, makePrevSheet(parsedDataB, facility), 'Previous Cycle Ref');
+
+    const safe = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+    const fname = `MedCartChanges_${safe}_${cycleDate.replace(/[\s,]/g,'_')}.xlsx`;
+    XLSX.writeFile(wb, fname);
+    showResult(fname, null, parsedDataA.length, parsedDataA.reduce((s,p)=>s+p.rxCount,0));
+  } catch(e) {
+    showError('Comparison Excel failed: '+e.message);
+  } finally {
+    btn.disabled=false; btn.textContent='📊 Changes Report (.xlsx)';
+  }
+}
+
+// ── CHANGES REPORT PDF — flat list matching Excel layout ──────────────────
+function generateComparisonPDF() {
+  if (!comparisonResult || !parsedDataA) return;
+  const btn = document.getElementById('gen-comp-pdf-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const facility  = document.getElementById('facility-name').value || facilityNameA || 'ALF Facility';
+      const cdRaw     = document.getElementById('cycle-date').value;
+      const cycleDate = cdRaw
+        ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
+        : new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+      const startTime = document.getElementById('start-time').value || '';
+      const endTime   = document.getElementById('end-time').value   || '';
+
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
+      const PW = doc.internal.pageSize.getWidth();
+      const PH = doc.internal.pageSize.getHeight();
+      const ML = 8, MR = 8, CW = PW - ML - MR;
+
+      const G  = [30,86,49], MG = [45,122,74], LG = [232,245,236];
+      const NV = [31,56,100], WH = [255,255,255];
+      const TPC = '{total_pages_count_string}';
+
+      // Action display config
+      const ACTION_LABEL = { REPLACE:'Replace pack', CHANGED:'Changed', NEW:'Replace pack / Add if missing', LEAVE_AS_IS:'Leave as is', REMOVE:'Remove from cart' };
+      const ACTION_BG    = { REPLACE:[245,250,245], CHANGED:[235,245,255], NEW:[255,255,235], LEAVE_AS_IS:[255,248,220], REMOVE:[255,242,242] };
+      const ACTION_COLOR = { REPLACE:[80,80,80], CHANGED:[31,56,100], NEW:[30,86,49], LEAVE_AS_IS:[160,100,0], REMOVE:[180,30,40] };
+
+      // ── Page header (redrawn on every page by didDrawPage) ─────────────
+      function drawPageHeader() {
+        const pg = doc.internal.getCurrentPageInfo().pageNumber;
+        // Row 1 — dark green title bar
+        doc.setFillColor(...G); doc.rect(0,0,PW,13,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...WH);
+        doc.text(`MEDICATION CART RECONCILIATION — ${facility}`, PW/2, 9, {align:'center'});
+        // Row 2 — medium green subtitle
+        doc.setFillColor(...MG); doc.rect(0,13,PW,7,'F');
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...WH);
+        doc.text(`Dazzle Health P.C. · AllCare · MSC Program · Cycle: ${cycleDate}`, PW/2, 17.8, {align:'center'});
+        doc.text('Page '+pg+' of '+TPC, PW-MR, 17.8, {align:'right'});
+      }
+
+      drawPageHeader();
+
+      // ── Info row — Facility / Visit Date / MSC Provider / Charge Nurse ──
+      let y = 22;
+      const infoFields = ['Facility','Visit Date','MSC Provider','Charge Nurse'];
+      const iw = CW / infoFields.length;
+      doc.setLineWidth(0.3);
+      infoFields.forEach((lbl, i) => {
+        const ix = ML + i * iw;
+        const lw = iw * 0.35, vw = iw * 0.65;
+        // Label cell
+        doc.setFillColor(...LG); doc.setDrawColor(...G);
+        doc.rect(ix, y, lw, 7, 'FD');
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...G);
+        doc.text(lbl, ix + lw/2, y+4.8, {align:'center'});
+        // Value cell (blank write-in)
+        doc.setFillColor(255,255,255);
+        doc.rect(ix + lw, y, vw, 7, 'FD');
+      });
+      y += 10;
+
+      // ── Build flat body rows ───────────────────────────────────────────
+      // Each entry: { cells[], action, isFirstForPatient }
+      const bodyMeta = [];
+      let rowNum = 0;
+      comparisonResult.forEach(({patient, changes}) => {
+        changes.forEach((ch, ci) => {
+          rowNum++;
+          const medName = ch.curr ? ch.curr.medName : (ch.prev ? ch.prev.medName : '');
+          const rx      = ch.curr ? (ch.curr.rxNum||'') : (ch.prev ? (ch.prev.rxNum||'') : '');
+          const oldMed  = ch.prev && ch.action !== 'NEW' ? ch.prev.medName : '';
+          const newMed  = (!ch.curr) ? '' : ch.curr.medName;
+          bodyMeta.push({
+            cells:   [rowNum, ci===0 ? patient.name : '', rx, medName, ACTION_LABEL[ch.action]||ch.action, oldMed, newMed, '', '', '', ci===0?'':'', ci===0?'':''],
+            action:  ch.action,
+            isFirst: ci === 0,
+          });
+        });
+        // blank spacer row between patients
+        bodyMeta.push({ cells:['','','','','','','','','','','',''], action:'SPACER', isFirst:false });
+      });
+
+      // ── autoTable ─────────────────────────────────────────────────────
+      doc.autoTable({
+        startY: y,
+        margin: { left:ML, right:MR, top:22 },
+        head: [['#','Patient Name','Rx Number','Medication / Item','Action','Old Med / Dose','New Med / Dose','Done','Issue','Notes','Start\nTime','End\nTime']],
+        body: bodyMeta.map(m => m.cells),
+        styles:     { fontSize:8, cellPadding:2.2, lineColor:[210,225,210], lineWidth:0.2, valign:'middle' },
+        headStyles: { fillColor:NV, textColor:WH, fontStyle:'bold', fontSize:8.5, halign:'center', cellPadding:3 },
+        columnStyles: {
+          0: { cellWidth:8,    halign:'center' },
+          1: { cellWidth:38 },
+          2: { cellWidth:20,   halign:'center' },
+          3: { cellWidth:'auto' },
+          4: { cellWidth:28,   halign:'center' },
+          5: { cellWidth:'auto' },
+          6: { cellWidth:'auto' },
+          7: { cellWidth:12,   halign:'center' },
+          8: { cellWidth:12,   halign:'center' },
+          9: { cellWidth:22 },
+          10:{ cellWidth:18,   halign:'center' },
+          11:{ cellWidth:18,   halign:'center' },
+        },
+        didParseCell(data) {
+          if (data.section !== 'body') return;
+          const meta = bodyMeta[data.row.index];
+          if (!meta) return;
+          if (meta.action === 'SPACER') {
+            data.cell.styles.fillColor    = [250,252,250];
+            data.cell.styles.minCellHeight = 3.5;
+            return;
+          }
+          // Row background
+          data.cell.styles.fillColor = ACTION_BG[meta.action] || [255,255,255];
+          // Patient name — bold green on first row
+          if (data.column.index === 1 && meta.isFirst) {
+            data.cell.styles.textColor  = [30,86,49];
+            data.cell.styles.fontStyle  = 'bold';
+          }
+          // Action column — colored text
+          if (data.column.index === 4) {
+            data.cell.styles.textColor = ACTION_COLOR[meta.action] || [60,60,60];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        didDrawPage() { drawPageHeader(); },
+        showHead: 'everyPage',
+      });
+
+      y = doc.lastAutoTable.finalY + 8;
+
+      // ── Sign-off section ───────────────────────────────────────────────
+      if (y > PH - 58) { doc.addPage(); drawPageHeader(); y = 24; }
+
+      // Reconciliation Period strip
+      doc.setFillColor(...LG); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+      doc.rect(ML, y, CW, 10, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...G);
+      doc.text('Reconciliation Period', ML+4, y+4.2);
+      if (startTime || endTime) {
+        doc.setFont('helvetica','normal'); doc.setTextColor(45,55,72);
+        const tp = [];
+        if (startTime) tp.push('Start Time:  '+startTime);
+        if (endTime)   tp.push('End Time:  '+endTime);
+        doc.text(tp.join('          '), ML+55, y+4.2);
+      } else {
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+        doc.text('Start Time:', ML+55, y+4.2);
+        doc.setDrawColor(130,130,130); doc.setLineWidth(0.3);
+        doc.line(ML+79, y+4.7, ML+130, y+4.7);
+        doc.text('End Time:', ML+140, y+4.2);
+        doc.line(ML+162, y+4.7, ML+215, y+4.7);
+      }
+      // Cycle label on second line of strip
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+      doc.text('Cycle:', ML+4, y+8.5);
+      doc.setFont('helvetica','normal'); doc.setTextColor(45,55,72);
+      doc.text(cycleDate, ML+20, y+8.5);
+      y += 14;
+
+      // Sign-off blocks
+      [[G,'MULTI SERVICE CARE PROVIDER',['Provider Name:','Signature:','Date:','Time:']],
+       [NV,'FACILITY STAFF SIGN-OFF',   ['Name:','Signature:','Date:','Time:']]].forEach(([clr,title,fields]) => {
+        doc.setFillColor(...clr); doc.rect(ML, y, CW, 8, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...WH);
+        doc.text(title, PW/2, y+5.5, {align:'center'});
+        y += 8;
+        const fw = CW/4;
+        fields.forEach((lbl, i) => {
+          const fx = ML + i*fw;
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+          doc.text(lbl, fx+2, y+10);
+          doc.setDrawColor(...clr); doc.setLineWidth(0.4);
+          doc.line(fx+2, y+18, fx+fw-3, y+18);
+        });
+        y += 26;
+      });
+
+      // Filing note
+      y += 4;
+      doc.setFillColor(...LG); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+      doc.rect(ML, y, CW, 7, 'FD');
+      doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+      doc.text('Med Cart Changes Report — CONFIDENTIAL — Dazzle Health PC / AllCare MSC Program.  File with Med Cart Recon records.',
+        PW/2, y+4.5, {align:'center'});
+
+      doc.putTotalPages(TPC);
+      const safe  = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+      const cdStr = cycleDate.replace(/[\s,]/g,'_');
+      const fname = `MedCartChanges_${safe}_${cdStr}.pdf`;
+      doc.save(fname);
+      showResult(null, fname, parsedDataA.length, parsedDataA.reduce((s,p)=>s+p.rxCount,0), 'changes');
+    } catch(e) {
+      showError('Changes PDF failed: '+e.message);
+    } finally {
+      btn.disabled=false; btn.textContent='📄 Changes PDF';
+    }
+  }, 50);
+}
+
+function makeDiffSheet(compResult, facility, cycleDate) {
+  const ws = {}, M = [];
+  let r = 0;
+  // Style helpers (same as in makeReconSheet)
+  const T = (bold,sz,rgb) => ({name:'Calibri',bold,sz,color:{rgb}});
+  const F = rgb => ({patternType:'solid',fgColor:{rgb},bgColor:{rgb}});
+  const A = (h='left',v='center',wrap=false) => ({horizontal:h,vertical:v,wrapText:wrap});
+  const B = (t,r2,b,l,rgb='cccccc') => {
+    const s = {style:'thin',color:{rgb}};
+    return {top:t?s:undefined,right:r2?s:undefined,bottom:b?s:undefined,left:l?s:undefined};
+  };
+  const thinB = B(1,1,1,1);
+  const sc = (ws,r,c,v,s) => { const k=XLSX.utils.encode_cell({r,c}); ws[k]={v,t:typeof v==='number'?'n':'s',s}; };
+  const merge = (r1,c1,r2,c2) => M.push({s:{r:r1,c:c1},e:{r:r2,c:c2}});
+  const span = (cols) => { for(let c=1;c<cols;c++) sc(ws,r,c,'',{fill:F('1E5631')}); };
+
+  // Title
+  sc(ws,r,0,`MEDICATION CART RECONCILIATION — ${facility}`,
+    {font:T(true,13,'FFFFFF'),fill:F('1E5631'),alignment:A('center','center'),border:thinB});
+  merge(r,0,r,9); span(10); r++;
+
+  sc(ws,r,0,`Dazzle Health P.C. · AllCare · MSC Program · Cycle: ${cycleDate}`,
+    {font:T(false,9,'FFFFFF'),fill:F('2D7A47'),alignment:A('center','center'),border:thinB});
+  merge(r,0,r,9); for(let c=1;c<=9;c++) sc(ws,r,c,'',{fill:F('2D7A47')}); r++;
+
+  // Info row
+  ['Facility','Visit Date','MSC Provider','Charge Nurse'].forEach((lbl,i) => {
+    sc(ws,r,i*2,lbl,  {font:T(true,8,'1E5631'),fill:F('e8f5ec'),alignment:A('right','center'),border:thinB});
+    sc(ws,r,i*2+1,'', {font:T(false,9,'2d3748'),fill:F('FFFFFF'),alignment:A('left','center'),border:thinB});
+  });
+  merge(r,1,r,1); r++;
+  sc(ws,r,0,'',{fill:F('FFFFFF')}); merge(r,0,r,9);
+  for(let c=0;c<=9;c++) sc(ws,r,c,'',{fill:F('FFFFFF')}); r++;
+
+  // Column headers
+  const hdrs = ['#','Patient Name','Rx Number','Medication / Item','Action','Old Med / Dose','New Med / Dose','✓ Done','⚠ Issue','Notes'];
+  const hdrW = [5,20,12,28,14,28,28,7,7,20];
+  hdrs.forEach((h,c) => sc(ws,r,c,h,{font:T(true,9,'FFFFFF'),fill:F('2E7D32'),alignment:A('center','center'),border:thinB}));
+  r++;
+
+  // Data rows
+  const actionLabel = {REPLACE:'Replace pack',CHANGED:'Changed',NEW:'Replace pack / Add if missing',LEAVE_AS_IS:'Leave as is',REMOVE:'Remove from cart'};
+  const actionFill  = {REPLACE:'E8F5EC',CHANGED:'EBF3FB',NEW:'FFFFF0',LEAVE_AS_IS:'FFF8DC',REMOVE:'FFF5F5'};
+  let rowIdx = 0;
+  compResult.forEach(({patient, changes}) => {
+    changes.forEach((ch, ci) => {
+      rowIdx++;
+      const bg = actionFill[ch.action]||'FFFFFF';
+      const medName = ch.curr ? ch.curr.medName : ch.prev.medName;
+      const rx      = ch.curr ? ch.curr.rxNum   : ch.prev.rxNum;
+      const oldMed  = ch.prev ? ch.prev.medName : '';
+      const newMed  = (!ch.curr) ? '' : ch.curr.medName;
+      const vals    = [rowIdx, ci===0?patient.name:'', rx||'', medName||'', actionLabel[ch.action]||ch.action, oldMed||'', newMed||'','','',''];
+      vals.forEach((v,c) => sc(ws,r,c,v,{font:T(false,8.5,'2d3748'),fill:F(bg),alignment:A(c===4?'center':'left','center',c===3||c===5||c===6),border:thinB}));
+      r++;
+    });
+    // blank spacer between patients
+    for(let c=0;c<=9;c++) sc(ws,r,c,'',{fill:F('F7FAFC'),border:thinB}); r++;
+  });
+  r++;
+
+  // Summary
+  const counts = {REMOVE:0,CHANGED:0,NEW:0,REPLACE:0,LEAVE_AS_IS:0};
+  compResult.forEach(({changes}) => changes.forEach(c => { if(counts[c.action]!==undefined) counts[c.action]++; }));
+  sc(ws,r,0,'SUMMARY',{font:T(true,9,'FFFFFF'),fill:F('1E5631'),alignment:A('center','center'),border:thinB});
+  merge(r,0,r,9); for(let c=1;c<=9;c++) sc(ws,r,c,'',{fill:F('1E5631')}); r++;
+  [['Remove from cart',counts.REMOVE,'FFF5F5','c53030'],['Changed',counts.CHANGED,'EBF3FB','2b6cb0'],
+   ['Repl/Add if missing',counts.NEW,'FFFFF0','744210'],['Replace pack',counts.REPLACE,'E8F5EC','1E5631']].forEach(([lbl,n,bg,clr],i) => {
+    sc(ws,r,i*2,lbl,{font:T(true,8,clr),fill:F(bg),alignment:A('right','center'),border:thinB});
+    sc(ws,r,i*2+1,n,  {font:T(true,11,clr),fill:F(bg),alignment:A('center','center'),border:thinB});
+  });
+  merge(r,1,r,1); merge(r,3,r,3); merge(r,5,r,5); merge(r,7,r,9);
+  sc(ws,r,8,'',{fill:F('E8F5EC'),border:thinB}); sc(ws,r,9,'',{fill:F('E8F5EC'),border:thinB}); r++;
+  r++;
+
+  // Sign-off
+  ['MSC PROVIDER','CHARGE NURSE'].forEach(role => {
+    sc(ws,r,0,role+' SIGN-OFF',{font:T(true,9,'FFFFFF'),fill:F('1E5631'),alignment:A('center','center'),border:thinB});
+    merge(r,0,r,9); for(let c=1;c<=9;c++) sc(ws,r,c,'',{fill:F('1E5631')}); r++;
+    ['Name:','Signature:','Date:','Time:'].forEach((lbl,i) => {
+      sc(ws,r,i*2,lbl,{font:T(true,8,'2d3748'),fill:F('F7FAFC'),alignment:A('right','center'),border:thinB});
+      sc(ws,r,i*2+1,'',{fill:F('FFFFFF'),border:thinB});
+    });
+    merge(r,7,r,9); sc(ws,r,8,'',{fill:F('FFFFFF'),border:thinB}); sc(ws,r,9,'',{fill:F('FFFFFF'),border:thinB}); r++;
+    r++;
+  });
+
+  // Footer
+  sc(ws,r,0,`MCR · Dazzle Health P.C. (AllCare) · MSC Program · CONFIDENTIAL`,
+    {font:T(false,7.5,'666666'),fill:F('F7FAFC'),alignment:A('center','center',true),border:B(1,1,1,1,'dddddd')});
+  merge(r,0,r,9); for(let c=1;c<=9;c++) sc(ws,r,c,'',{fill:F('F7FAFC')}); r++;
+
+  ws['!merges'] = M;
+  ws['!cols'] = hdrW.map(w => ({wch:w}));
+  ws['!rows'] = [];
+  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r-1,c:9}});
+  return ws;
+}
+
+function makePrevSheet(patients, facility) {
+  // Simple reference sheet — same structure as makeReconSheet but greyed header
+  const ws = {}, M = [];
+  let r = 0;
+  const T = (bold,sz,rgb) => ({name:'Calibri',bold,sz,color:{rgb}});
+  const F = rgb => ({patternType:'solid',fgColor:{rgb},bgColor:{rgb}});
+  const A = (h='left',v='center',wrap=false) => ({horizontal:h,vertical:v,wrapText:wrap});
+  const B = () => ({top:{style:'thin',color:{rgb:'cccccc'}},right:{style:'thin',color:{rgb:'cccccc'}},bottom:{style:'thin',color:{rgb:'cccccc'}},left:{style:'thin',color:{rgb:'cccccc'}}});
+  const sc = (ws,r,c,v,s) => { const k=XLSX.utils.encode_cell({r,c}); ws[k]={v,t:typeof v==='number'?'n':'s',s}; };
+
+  sc(ws,r,0,`REFERENCE ONLY — Previous Cycle — ${facility}`,
+    {font:T(true,12,'FFFFFF'),fill:F('4a5568'),alignment:A('center','center'),border:B()});
+  for(let c=1;c<=10;c++) sc(ws,r,c,'',{fill:F('4a5568'),border:B()}); M.push({s:{r,c:0},e:{r,c:10}}); r++;
+  sc(ws,r,0,'This data is for reference only. Do not use for active dispensing.',
+    {font:T(true,9,'c53030'),fill:F('fff5f5'),alignment:A('center','center'),border:B()});
+  for(let c=1;c<=10;c++) sc(ws,r,c,'',{fill:F('fff5f5'),border:B()}); M.push({s:{r,c:0},e:{r,c:10}}); r++;
+  r++;
+
+  const hdrs = ['#','Patient Name','DOB','Rx Number','Medication','Prescriber','Directions'];
+  hdrs.forEach((h,c) => sc(ws,r,c,h,{font:T(true,8,'FFFFFF'),fill:F('718096'),alignment:A('center','center'),border:B()}));
+  r++;
+
+  let idx = 0;
+  patients.forEach(p => {
+    const meds = p.medications&&p.medications.length ? p.medications : [{num:1,medName:'',rxNum:(p.rxNums||[])[0]||'',prescriber:p.pcp||'',directions:''}];
+    meds.forEach((m,mi) => {
+      idx++;
+      const vals = [idx, mi===0?p.name:'', mi===0?(p.dob||''):'', m.rxNum||'', m.medName||'', m.prescriber||'', m.directions||''];
+      vals.forEach((v,c) => sc(ws,r,c,v,{font:T(false,8,'4a5568'),fill:F('f7fafc'),alignment:A('left','center',c===6),border:B()}));
+      r++;
+    });
+  });
+
+  ws['!merges'] = M;
+  ws['!cols'] = [5,22,12,12,30,22,40].map(w=>({wch:w}));
+  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:r-1,c:6}});
+  return ws;
+}
+
+function generatePDF() {
+  if (!parsedData) return;
+  const btn = document.getElementById('gen-pdf-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const facility  = document.getElementById('facility-name').value || 'ALF Facility';
+      const cdRaw     = document.getElementById('cycle-date').value;
+      const cycleDate = cdRaw
+        ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+        : new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+      const startTime = document.getElementById('start-time').value || '';
+      const endTime   = document.getElementById('end-time').value   || '';
+
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
+      const PW = doc.internal.pageSize.getWidth();   // 279.4
+      const ML = 12, MR = 12, CW = PW - ML - MR;
+      const G  = [30,86,49], MG = [46,125,50], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const RED = [180,30,40], REDBG = [255,245,245], REDLN = [220,180,180];
+      const now = new Date();
+      const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+      const TPC = '{total_pages_count_string}';
+
+      function drawPageHeader() {
+        const pg = doc.internal.getCurrentPageInfo().pageNumber;
+        // Green bar
+        doc.setFillColor(...G);
+        doc.rect(0, 0, PW, 20, 'F');
+        // Brand left
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...WH);
+        doc.text('Dazzle Health PC', ML, 8);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(180,230,195);
+        doc.text('AllRx', ML, 14);
+        // Center title
+        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...WH);
+        doc.text('Med Cart Reconciliation', PW/2, 8.5, {align:'center'});
+        // Cycle date pill
+        const pill = 'Cycle Date: '+cycleDate;
+        const pw2  = doc.getTextWidth(pill)+8;
+        doc.setFillColor(...WH); doc.setDrawColor(...WH);
+        doc.roundedRect(PW/2-pw2/2, 11, pw2, 6, 2, 2, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+        doc.text(pill, PW/2, 15.4, {align:'center'});
+        // Right: facility + printed + page
+        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.text('Facility: '+facility, PW-MR, 7,  {align:'right'});
+        doc.text('Printed: '+printed,   PW-MR, 12, {align:'right'});
+        doc.text('Page '+pg+' of '+TPC, PW-MR, 17, {align:'right'});
+        // Bottom rule
+        doc.setDrawColor(...G); doc.setLineWidth(0.8);
+        doc.line(ML, 21, PW-MR, 21);
+      }
+
+      drawPageHeader();
+      let y = 24;
+
+      // ── Rule note strip — shown once at top of document ───────────────
+      doc.setFillColor(255,248,220); doc.setDrawColor(160,100,0); doc.setLineWidth(0.3);
+      doc.rect(ML, y, CW, 9, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(140,80,0);
+      doc.text('NOTE:', ML+3, y+5.8);
+      doc.setFont('helvetica','normal'); doc.setTextColor(80,55,0);
+      doc.text('If "Remove per typist" is checked, this medication has been removed from the list — ignore in cart, do not act upon it.', ML+18, y+5.8);
+      y += 12;
+
+      const ACT_LABEL = { REPLACE:'Replace pack', CHANGED:'Changed', NEW:'Replace pack /\nAdd if missing', LEAVE_AS_IS:'Leave as is', REMOVE:'Remove from cart' };
+      const ACT_BG    = { REPLACE:[243,252,243], CHANGED:[235,245,255], NEW:[255,255,230], LEAVE_AS_IS:[255,248,220], REMOVE:[255,235,235] };
+      const ACT_CLR   = { REPLACE:[30,86,49],   CHANGED:[31,56,100],   NEW:[20,110,50],   LEAVE_AS_IS:[160,100,0],   REMOVE:[180,30,40]   };
+
+      parsedData.forEach((patient, pIdx) => {
+        if (pIdx > 0) { doc.addPage(); drawPageHeader(); y = 24; }
+
+        // ── Patient card ──────────────────────────────────────
+        const cardH = 22; // fixed — bottom row always holds per-patient Start / End time
+        doc.setFillColor(...LG); doc.setDrawColor(...G); doc.setLineWidth(0.5);
+        doc.roundedRect(ML, y, CW, cardH, 2, 2, 'FD');
+        // Name
+        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...NV);
+        doc.text(patient.name, ML+4, y+8);
+        // Separator line
+        doc.setDrawColor(180,210,185); doc.setLineWidth(0.25);
+        doc.line(ML+4, y+10, ML+CW-4, y+10);
+        const iy = y+17;
+        // DOB / AGE / PHARMACY — left side
+        [
+          {lbl:'DOB',      val:patient.dob,     x:ML+4},
+          {lbl:'AGE / SEX',val:patient.ageSex,  x:ML+52},
+          {lbl:'PHARMACY', val:patient.pharmacy, x:ML+CW*0.44},
+        ].forEach(({lbl,val,x}) => {
+          if (!val) return;
+          doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...G);
+          doc.text(lbl, x, iy);
+          doc.setFont('helvetica','normal'); doc.setTextColor(45,55,72);
+          doc.text('  '+val, x+doc.getTextWidth(lbl), iy, {maxWidth:60});
+        });
+        // Per-patient Start / End time — right side
+        const stX = ML + CW * 0.63;
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...G);
+        doc.text('Start:', stX, iy);
+        doc.setDrawColor(100,100,100); doc.setLineWidth(0.3);
+        doc.line(stX + 12, iy + 0.5, stX + 38, iy + 0.5);
+        const etX = stX + 43;
+        doc.text('End:', etX, iy);
+        doc.line(etX + 9, iy + 0.5, ML + CW - 4, iy + 0.5);
+        y += cardH + 4;
+
+        // ── Build comparison lookup for this patient ──────────
+        const rxChangeMap  = new Map();  // rxNum → comparison change obj (curr meds)
+        const prevOnlyMeds = [];         // changes where curr is null (prev-only: REMOVE / LEAVE_AS_IS)
+        if (comparisonResult) {
+          const ptKey  = normPtName(patient.name);
+          const ptComp = comparisonResult.find(r => normPtName(r.patient.name) === ptKey);
+          if (ptComp) {
+            ptComp.changes.forEach(ch => {
+              if (!ch.curr) {
+                prevOnlyMeds.push(ch);   // REMOVE or LEAVE_AS_IS with no curr med
+              } else {
+                const rx = String(ch.curr.rxNum||'').trim();
+                if (rx) rxChangeMap.set(rx, ch);
+              }
+            });
+          }
+        }
+
+        // ── Unified medication + action table ─────────────────
+        const meds = (patient.medications && patient.medications.length)
+          ? patient.medications
+          : Array.from({length:patient.rxCount||0},(_,i)=>({
+              num:i+1, medName:'', rxNum:patient.rxNums?.[i]||'',
+              prescriber:patient.pcp||'', directions:'',
+            }));
+
+        const rowMeta = [];
+        // Render-time dedup: skip rows with same Rx# OR same drug name already rendered
+        const renderedRxSet   = new Set();
+        const renderedDrugSet = new Set();
+        let rowNum = 0;
+        meds.forEach((m) => {
+          const rxKey = String(m.rxNum||'').trim();
+          const dk    = normDrug(normSig(m.medName||''));
+          if (rxKey && renderedRxSet.has(rxKey)) return;
+          if (dk    && renderedDrugSet.has(dk))   return;
+          if (rxKey) renderedRxSet.add(rxKey);
+          if (dk)    renderedDrugSet.add(dk);
+          rowNum++;
+          const ch         = rxKey ? rxChangeMap.get(rxKey) : null;
+          const action     = ch ? ch.action : null;
+          const actionText = action ? ACT_LABEL[action] : '';
+          const oldMed     = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
+          rowMeta.push({
+            cells:  [rowNum, m.medName||'', m.rxNum||'', m.prescriber||'', actionText, oldMed, '','','','','',''],
+            action, isDisc: false,
+          });
+        });
+        // Previous-cycle-only meds (REMOVE or LEAVE_AS_IS) — appended at bottom
+        prevOnlyMeds.forEach((ch) => {
+          const prev = ch.prev || {};
+          rowNum++;
+          rowMeta.push({
+            cells:  [rowNum, prev.medName||'', prev.rxNum||'', prev.prescriber||'', ACT_LABEL[ch.action]||ch.action, '','','','','','',''],
+            action: ch.action, isDisc: ch.action === 'REMOVE',
+          });
+        });
+
+        const notesFieldPos = [];
+        doc.autoTable({
+          startY: y,
+          margin: {left:ML, right:MR, top:24},
+          head: [['#','Medication / Item','Rx #','Prescriber','Action','Previous Med / Ref',
+                  'Qty\nOK','Label\nOK','Exp\nOK','Notes','Verified','Remove\nper typist']],
+          body: rowMeta.map(m => m.cells),
+          theme: 'grid',
+          styles: {
+            font:'helvetica', fontSize:9,
+            cellPadding:{top:2,bottom:2,left:2.5,right:2.5},
+            valign:'middle', overflow:'linebreak',
+            lineColor:[180,210,185], lineWidth:0.2,
+          },
+          headStyles: {
+            fillColor:G, textColor:WH, fontStyle:'bold', fontSize:8.5,
+            halign:'center', valign:'middle', minCellHeight:13,
+          },
+          bodyStyles: { minCellHeight:18 },
+          columnStyles: {
+            0:  {cellWidth:6,  halign:'center', fontStyle:'bold'},
+            1:  {cellWidth:'auto', fontSize:9.5},
+            2:  {cellWidth:16, halign:'center'},
+            3:  {cellWidth:20},
+            4:  {cellWidth:30, halign:'center'},
+            5:  {cellWidth:22},
+            6:  {cellWidth:11, halign:'center'},
+            7:  {cellWidth:11, halign:'center'},
+            8:  {cellWidth:11, halign:'center'},
+            9:  {cellWidth:45},
+            10: {cellWidth:12, halign:'center'},
+            11: {cellWidth:12, halign:'center'},
+          },
+          didParseCell(data) {
+            if (data.section !== 'body') return;
+            const meta = rowMeta[data.row.index];
+            if (!meta) return;
+            if (meta.action) {
+              data.cell.styles.fillColor = ACT_BG[meta.action] || [255,255,255];
+              if (data.column.index === 4) {
+                data.cell.styles.textColor = ACT_CLR[meta.action];
+                data.cell.styles.fontStyle = 'bold';
+              }
+            } else {
+              data.cell.styles.fillColor = data.row.index % 2 === 0 ? [255,255,255] : [245,252,245];
+            }
+          },
+          didDrawCell(data) {
+            if (data.section !== 'body') return;
+            const {x, y:cy, width:cw, height} = data.cell;
+            const ci = data.column.index;
+            if ([6,7,8].includes(ci)) {
+              const sh = (height - 14) / 2;
+              doc.setDrawColor(90,90,90); doc.setLineWidth(0.28);
+              doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(40,40,40);
+              ['Y','N'].forEach((opt, oi) => {
+                const bx = x + 1.5, by = cy + sh + oi * 7;
+                doc.rect(bx, by, 4.5, 4.5);
+                doc.text(opt, bx + 5.5, by + 3.6);
+              });
+            }
+            // Notes column (9) — collect position for AcroForm text field
+            if (ci === 9) {
+              notesFieldPos.push({x, y:cy, w:cw, h:height, page:doc.internal.getCurrentPageInfo().pageNumber, idx:notesFieldPos.length});
+            }
+            // Verified (10) and Remove per typist (11) — large checkbox
+            if (ci === 10 || ci === 11) {
+              const bx = x + (cw - 7) / 2;
+              const by = cy + (height - 7) / 2;
+              doc.setDrawColor(ci===11 ? 180 : 60, ci===11 ? 30 : 100, ci===11 ? 40 : 60);
+              doc.setLineWidth(0.4);
+              doc.rect(bx, by, 7, 7);
+            }
+          },
+          didDrawPage() { drawPageHeader(); },
+          showHead: 'everyPage',
+        });
+        // Add interactive AcroForm text fields for Notes column
+        {
+          const pageAfterTable = doc.internal.getCurrentPageInfo().pageNumber;
+          const PH_mm = doc.internal.pageSize.getHeight();
+          notesFieldPos.forEach(f => {
+            doc.setPage(f.page);
+            try {
+              const AcroTF = jsPDF.AcroFormTextField
+                || (window.jspdf && window.jspdf.AcroFormTextField);
+              if (!AcroTF) throw new Error('no AcroForm');
+              const tf = new AcroTF();
+              tf.fieldName = `notes_${pIdx}_${f.idx}`;
+              tf.x = f.x + 0.5;
+              tf.y = PH_mm - f.y - f.h + 0.5;
+              tf.width = f.w - 1;
+              tf.height = f.h - 1;
+              tf.fontSize = 7;
+              doc.addField(tf);
+            } catch(e) { /* silently skip if AcroForm unsupported */ }
+          });
+          doc.setPage(pageAfterTable);
+        }
+
+        // ── Discrepancy write-in rows (kept for manual cart findings) ──
+        ['** IN CART — NOT ON MED LIST','** ON MED LIST — NOT IN CART'].forEach(title => {
+          doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 3,
+            margin: {left:ML, right:MR, top:24},
+            head: [
+              [{content:title, colSpan:6,
+                styles:{fillColor:[180,30,40],textColor:[255,255,255],fontStyle:'bold',
+                        fontSize:9,halign:'center',cellPadding:{top:2.5,bottom:2.5}}}],
+              ['#','Medication / Item','Rx #','Prescriber','Action / Notes','Resolved?'],
+            ],
+            body: Array.from({length:3},(_,i)=>[i+1,'','','','','']),
+            theme: 'grid',
+            styles: {font:'helvetica',fontSize:9,cellPadding:{top:2,bottom:2,left:2.5,right:2.5},
+                     valign:'middle',lineColor:[220,180,180],lineWidth:0.2},
+            headStyles: {fillColor:[200,35,45],textColor:[255,255,255],fontStyle:'bold',fontSize:9,halign:'center'},
+            bodyStyles: {fillColor:[255,255,255],minCellHeight:11},
+            columnStyles: {
+              0:{cellWidth:7,  halign:'center'},
+              2:{cellWidth:18, halign:'center'},
+              3:{cellWidth:30},
+              5:{cellWidth:20, halign:'center'},
+            },
+            didDrawPage() { drawPageHeader(); },
+            showHead: 'everyPage',
+          });
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      });
+
+      // ── Fully discontinued patients (not in current cycle) ────────────
+      if (comparisonResult) {
+        comparisonResult.filter(r => r.isDiscontinuedPatient).forEach(({patient, changes}) => {
+          doc.addPage(); drawPageHeader(); y = 24;
+
+          // Patient card — red-tinted to signal discontinued
+          doc.setFillColor(255,242,242); doc.setDrawColor(180,30,40); doc.setLineWidth(0.5);
+          doc.roundedRect(ML, y, CW, 22, 2, 2, 'FD');
+          doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(180,30,40);
+          doc.text(patient.name, ML+4, y+8.5);
+          doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(180,30,40);
+          doc.text('DISCONTINUED — NOT IN CURRENT CYCLE', ML+CW-4, y+8.5, {align:'right'});
+          // Separator + per-patient Start / End time
+          doc.setDrawColor(220,180,180); doc.setLineWidth(0.25);
+          doc.line(ML+4, y+10.5, ML+CW-4, y+10.5);
+          const diy = y+17;
+          const dstX = ML + CW * 0.63;
+          doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(180,30,40);
+          doc.text('Start:', dstX, diy);
+          doc.setDrawColor(180,30,40); doc.setLineWidth(0.3);
+          doc.line(dstX + 12, diy + 0.5, dstX + 38, diy + 0.5);
+          const detX = dstX + 43;
+          doc.text('End:', detX, diy);
+          doc.line(detX + 9, diy + 0.5, ML + CW - 4, diy + 0.5);
+          y += 26;
+
+          const discRowMeta = changes
+            .map((ch, i) => ({
+              cells: [i+1, (ch.prev||{}).medName||'', (ch.prev||{}).rxNum||'', (ch.prev||{}).prescriber||'', ACT_LABEL[ch.action]||ch.action, '','','','','','',''],
+              action: ch.action,
+            }));
+
+          const discNotesPos = [];
+          doc.autoTable({
+            startY: y,
+            margin: {left:ML, right:MR, top:24},
+            head: [['#','Medication / Item','Rx #','Prescriber','Action','Previous Med / Ref',
+                    'Qty\nOK','Label\nOK','Exp\nOK','Notes','Verified','Remove\nper typist']],
+            body: discRowMeta.map(m => m.cells),
+            theme: 'grid',
+            styles: { font:'helvetica', fontSize:9, cellPadding:{top:2,bottom:2,left:2.5,right:2.5},
+                      valign:'middle', overflow:'linebreak', lineColor:[180,210,185], lineWidth:0.2 },
+            headStyles: { fillColor:G, textColor:WH, fontStyle:'bold', fontSize:8.5,
+                          halign:'center', valign:'middle', minCellHeight:13 },
+            bodyStyles: { minCellHeight:18 },
+            columnStyles: {
+              0:  {cellWidth:6,  halign:'center', fontStyle:'bold'},
+              1:  {cellWidth:'auto', fontSize:9.5},
+              2:  {cellWidth:16, halign:'center'},
+              3:  {cellWidth:20},
+              4:  {cellWidth:30, halign:'center'},
+              5:  {cellWidth:22},
+              6:  {cellWidth:11, halign:'center'},
+              7:  {cellWidth:11, halign:'center'},
+              8:  {cellWidth:11, halign:'center'},
+              9:  {cellWidth:45},
+              10: {cellWidth:12, halign:'center'},
+              11: {cellWidth:12, halign:'center'},
+            },
+            didParseCell(data) {
+              if (data.section !== 'body') return;
+              const meta = discRowMeta[data.row.index];
+              if (!meta) return;
+              data.cell.styles.fillColor = ACT_BG[meta.action] || [255,255,255];
+              if (data.column.index === 4) {
+                data.cell.styles.textColor = ACT_CLR[meta.action] || [60,60,60];
+                data.cell.styles.fontStyle = 'bold';
+              }
+            },
+            didDrawCell(data) {
+              if (data.section !== 'body') return;
+              const {x, y:cy, width:cw, height} = data.cell;
+              const ci = data.column.index;
+              if ([6,7,8].includes(ci)) {
+                const sh = (height - 14) / 2;
+                doc.setDrawColor(90,90,90); doc.setLineWidth(0.28);
+                doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(40,40,40);
+                ['Y','N'].forEach((opt, oi) => {
+                  const bx = x + 1.5, by = cy + sh + oi * 7;
+                  doc.rect(bx, by, 4.5, 4.5);
+                  doc.text(opt, bx + 5.5, by + 3.6);
+                });
+              }
+              if (ci === 9) {
+                discNotesPos.push({x, y:cy, w:cw, h:height, page:doc.internal.getCurrentPageInfo().pageNumber, idx:discNotesPos.length});
+              }
+              if (ci === 10 || ci === 11) {
+                const bx = x + (cw - 7) / 2;
+                const by = cy + (height - 7) / 2;
+                doc.setDrawColor(ci===11 ? 180 : 60, ci===11 ? 30 : 100, ci===11 ? 40 : 60);
+                doc.setLineWidth(0.4);
+                doc.rect(bx, by, 7, 7);
+              }
+            },
+            didDrawPage() { drawPageHeader(); },
+            showHead: 'everyPage',
+          });
+          {
+            const pg2 = doc.internal.getCurrentPageInfo().pageNumber;
+            const PH2 = doc.internal.pageSize.getHeight();
+            discNotesPos.forEach(f => {
+              doc.setPage(f.page);
+              try {
+                const AcroTF = jsPDF.AcroFormTextField
+                  || (window.jspdf && window.jspdf.AcroFormTextField);
+                if (!AcroTF) throw new Error('no AcroForm');
+                const tf = new AcroTF();
+                tf.fieldName = `discnotes_${f.idx}`;
+                tf.x = f.x + 0.5; tf.y = PH2 - f.y - f.h + 0.5;
+                tf.width = f.w - 1; tf.height = f.h - 1; tf.fontSize = 7;
+                doc.addField(tf);
+              } catch(e) {}
+            });
+            doc.setPage(pg2);
+          }
+          y = doc.lastAutoTable.finalY + 6;
+        });
+      }
+
+      // ── Sign-off page ─────────────────────────────────────
+      doc.addPage(); drawPageHeader(); y = 26;
+
+      // Reconciliation period strip — always visible; filled if entered, blank lines if not
+      doc.setFillColor(...LG); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+      doc.rect(ML, y, CW, 10, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...G);
+      doc.text('Reconciliation Period', ML+4, y+4);
+      if (startTime || endTime) {
+        doc.setFont('helvetica','normal'); doc.setTextColor(45,55,72);
+        const timeParts = [];
+        if (startTime) timeParts.push('Start Time:  '+startTime);
+        if (endTime)   timeParts.push('End Time:  '+endTime);
+        doc.text(timeParts.join('          '), ML+4, y+8.2);
+      } else {
+        // blank write-in lines
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+        doc.text('Start Time:', ML+4, y+8.2);
+        doc.setDrawColor(130,130,130); doc.setLineWidth(0.3);
+        doc.line(ML+26, y+8.5, ML+80, y+8.5);
+        doc.text('End Time:', ML+90, y+8.2);
+        doc.line(ML+110, y+8.5, ML+164, y+8.5);
+      }
+      y += 14;
+
+      [[G,'MULTI SERVICE CARE PROVIDER',['Provider Name:','Signature:','Date:','Time:']],
+       [NV,'FACILITY STAFF SIGN-OFF',   ['Name:','Signature:','Date:','Time:']]].forEach(([clr,title,fields]) => {
+        doc.setFillColor(...clr); doc.rect(ML, y, CW, 8, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...WH);
+        doc.text(title, PW/2, y+5.5, {align:'center'});
+        y += 8;
+        const fw = CW/4;
+        fields.forEach((lbl,i) => {
+          const fx = ML+i*fw;
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+          doc.text(lbl, fx+2, y+10);
+          doc.setDrawColor(...clr); doc.setLineWidth(0.4);
+          doc.line(fx+2, y+18, fx+fw-3, y+18);
+        });
+        y += 26;
+      });
+      // Filing note
+      y += 4;
+      doc.setFillColor(...LG); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+      doc.rect(ML, y, CW, 7, 'FD');
+      doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+      doc.text(
+        'Combined visit: attach to Medication List.  Standalone: file under Med Cart Recon service records.  CONFIDENTIAL',
+        PW/2, y+4.5, {align:'center'}
+      );
+
+      doc.putTotalPages(TPC);
+      const safe = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+      const cdStr = cycleDate.replace(/[\s,]/g,'_');
+      const pdfFname = `MedCartRecon_${safe}_${cdStr}.pdf`;
+      doc.save(pdfFname);
+      showResult(null, pdfFname, parsedData.length, parsedData.reduce((s,p)=>s+p.rxCount,0), 'recon');
+    } catch(e) {
+      showError('PDF generation failed: '+e.message);
+    } finally {
+      btn.disabled=false; btn.textContent='📄 Generate PDF';
+    }
+  }, 50);
+}
+
+// ── MED LIST PDF GENERATOR ─────────────────────────────────────────────────
+function generateMedList() {
+  if (!parsedData) return;
+  const btn = document.getElementById('gen-medlist-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const facility  = document.getElementById('facility-name').value || 'ALF Facility';
+      const cdRaw     = document.getElementById('cycle-date').value;
+      const cycleDate = cdRaw
+        ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+        : new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      const startTime = document.getElementById('start-time').value || '';
+      const endTime   = document.getElementById('end-time').value   || '';
+
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
+      const PW = doc.internal.pageSize.getWidth();
+      const PH = doc.internal.pageSize.getHeight();
+      const ML = 12, MR = 12, CW = PW - ML - MR;
+      // Colors
+      const G   = [30,86,49], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const PUR = [85,60,154], PLG = [245,242,255];
+      const now = new Date();
+      const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+      const TPC = '{total_pages_count_string}';
+
+      function drawMLHeader() {
+        const pg = doc.internal.getCurrentPageInfo().pageNumber;
+        // Purple-tinted green bar
+        doc.setFillColor(...G); doc.rect(0, 0, PW, 20, 'F');
+        doc.setFillColor(85,60,154); doc.rect(0, 0, 4, 20, 'F'); // left accent stripe
+        // Brand
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...WH);
+        doc.text('Dazzle Health PC', ML, 8);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(180,230,195);
+        doc.text('AllRx', ML, 14);
+        // Title
+        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...WH);
+        doc.text('Medication List — Cycle Check', PW/2, 8.5, {align:'center'});
+        // Cycle date pill
+        const pill = 'Cycle Date: '+cycleDate;
+        const pw2  = doc.getTextWidth(pill)+8;
+        doc.setFillColor(...WH); doc.setDrawColor(...WH);
+        doc.roundedRect(PW/2-pw2/2, 11, pw2, 6, 2, 2, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+        doc.text(pill, PW/2, 15.4, {align:'center'});
+        // Right info
+        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.text('Facility: '+facility, PW-MR, 7, {align:'right'});
+        doc.text('Printed: '+printed,   PW-MR, 12, {align:'right'});
+        doc.text('Page '+pg+' of '+TPC, PW-MR, 17, {align:'right'});
+        // Bottom rule
+        doc.setDrawColor(...G); doc.setLineWidth(0.8);
+        doc.line(ML, 21, PW-MR, 21);
+      }
+
+      drawMLHeader();
+      let y = 24;
+
+      parsedData.forEach((patient, pIdx) => {
+        if (pIdx > 0) { doc.addPage(); drawMLHeader(); y = 24; }
+
+        // ── Patient card ────────────────────────────────────
+        const cardH = 22; // fixed — always shows per-patient Start / End time
+        doc.setFillColor(...PLG); doc.setDrawColor(...PUR); doc.setLineWidth(0.5);
+        doc.roundedRect(ML, y, CW, cardH, 2, 2, 'FD');
+        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...NV);
+        doc.text(patient.name, ML+4, y+8);
+        doc.setDrawColor(200,185,230); doc.setLineWidth(0.25);
+        doc.line(ML+4, y+10, ML+CW-4, y+10);
+        const iy = y+17;
+        // DOB / AGE / PHARMACY — left side
+        [
+          {lbl:'DOB',      val:patient.dob,      x:ML+4},
+          {lbl:'AGE / SEX',val:patient.ageSex,   x:ML+52},
+          {lbl:'PHARMACY', val:patient.pharmacy,  x:ML+CW*0.44},
+        ].forEach(({lbl,val,x}) => {
+          if (!val) return;
+          doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...PUR);
+          doc.text(lbl, x, iy);
+          doc.setFont('helvetica','normal'); doc.setTextColor(45,55,72);
+          doc.text('  '+val, x+doc.getTextWidth(lbl), iy, {maxWidth:60});
+        });
+        // Per-patient Start / End time — right side
+        const mlStX = ML + CW * 0.63;
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...PUR);
+        doc.text('Start:', mlStX, iy);
+        doc.setDrawColor(100,100,100); doc.setLineWidth(0.3);
+        doc.line(mlStX + 12, iy + 0.5, mlStX + 38, iy + 0.5);
+        const mlEtX = mlStX + 43;
+        doc.text('End:', mlEtX, iy);
+        doc.line(mlEtX + 9, iy + 0.5, ML + CW - 4, iy + 0.5);
+        y += cardH + 3;
+
+        // ── Medication table ─────────────────────────────────
+        const meds = (patient.medications && patient.medications.length)
+          ? patient.medications
+          : Array.from({length:patient.rxCount||0},(_,i)=>({
+              num:i+1, medName:'', rxNum:patient.rxNums?.[i]||'',
+              prescriber:patient.pcp||'', directions:'',
+            }));
+
+        // Cols: # | Med Name | Rx# | Directions | Indication | Risk Level | Prescriber | Fridge | Verified | Notes
+        // Widths (CW ≈ 255.4mm): 7+40+17+46+18+24+38+13+13+39.4 = 255.4
+        doc.autoTable({
+          startY: y,
+          margin: {left:ML, right:MR, top:24},
+          head: [['#','Medication\nName','Rx\nNumber','Directions / SIG','Indication','Risk\nLevel','Prescriber','Fridge\nCheck','Verified','Notes']],
+          body: meds.map((m,i) => [
+            String(m.num!=null?m.num:i+1),
+            m.medName||'', m.rxNum||'', m.directions||'',
+            '','', m.prescriber||'', '','','',
+          ]),
+          theme: 'grid',
+          styles: {
+            font:'helvetica', fontSize:9,
+            cellPadding:{top:2,bottom:2,left:2,right:2},
+            valign:'middle', overflow:'linebreak',
+            lineColor:[200,185,230], lineWidth:0.2,
+          },
+          headStyles: {
+            fillColor:PUR, textColor:WH,
+            fontStyle:'bold', fontSize:8.5,
+            halign:'center', valign:'middle', minCellHeight:12,
+          },
+          alternateRowStyles: {fillColor:PLG},
+          bodyStyles: {fillColor:WH, minCellHeight:20},
+          columnStyles: {
+            0: {cellWidth:7,  halign:'center', fontStyle:'bold'},
+            1: {cellWidth:40, fontSize:9.5},
+            2: {cellWidth:17, halign:'center'},
+            3: {cellWidth:46},
+            4: {cellWidth:18},
+            5: {cellWidth:24, halign:'center'},
+            6: {cellWidth:38},
+            7: {cellWidth:13, halign:'center'},
+            8: {cellWidth:13, halign:'center'},
+            9: {cellWidth:CW-7-40-17-46-18-24-38-13-13},
+          },
+          didDrawCell(data) {
+            if (data.section !== 'body') return;
+            const {x, y:cy, height, width} = data.cell;
+            // Risk Level column (5): Critical / Caution / Standard stacked checkboxes
+            if (data.column.index === 5) {
+              const opts = [
+                {lbl:'Critical', clr:[200,40,40]},
+                {lbl:'Caution',  clr:[200,110,0]},
+                {lbl:'Standard', clr:[30,110,50]},
+              ];
+              const startRY = cy + (height - opts.length*5.4)/2;
+              opts.forEach((opt,oi) => {
+                const bx=x+2, by=startRY+oi*5.4;
+                doc.setDrawColor(110,110,110); doc.setLineWidth(0.25);
+                doc.rect(bx, by, 3, 3);
+                doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+                doc.setTextColor(...opt.clr);
+                doc.text(opt.lbl, bx+4, by+2.4);
+              });
+            }
+            // Fridge Check (7) and Verified (8): single centred checkbox
+            if (data.column.index === 7 || data.column.index === 8) {
+              const bx = x + (width-4)/2;
+              const by = cy + (height-4)/2;
+              doc.setDrawColor(100,100,100); doc.setLineWidth(0.3);
+              doc.rect(bx, by, 4, 4);
+            }
+          },
+          didDrawPage() { drawMLHeader(); },
+          showHead: 'everyPage',
+        });
+        // ── Reconciliation Verification section ─────────────
+        let rv = doc.lastAutoTable.finalY + 4;
+        if (rv + 58 > PH - 8) { doc.addPage(); drawMLHeader(); rv = 26; }
+
+        // Title
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...G);
+        doc.text('Reconciliation Verification', ML, rv+6);
+        doc.setDrawColor(120,180,140); doc.setLineWidth(0.4);
+        doc.line(ML, rv+8, ML+CW, rv+8);
+
+        // Checkbox 1: Missing Medications
+        const c1y = rv+16;
+        doc.setDrawColor(80,80,80); doc.setLineWidth(0.3);
+        doc.rect(ML+1, c1y-3.5, 4, 4);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(40,40,40);
+        doc.text('Missing Medications:', ML+7, c1y);
+        doc.setFont('helvetica','normal');
+        doc.text(' Patient has medications NOT included in this list — if checked, list below:', ML+7+doc.getTextWidth('Missing Medications:'), c1y);
+        // Write-in lines
+        doc.setDrawColor(180,180,180); doc.setLineWidth(0.25);
+        doc.line(ML+7, c1y+6,  ML+CW, c1y+6);
+        doc.line(ML+7, c1y+12, ML+CW, c1y+12);
+
+        // Checkbox 2: Reconciliation Complete
+        const c2y = c1y+21;
+        doc.rect(ML+1, c2y-3.5, 4, 4);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(40,40,40);
+        doc.text('Reconciliation Complete', ML+7, c2y);
+        doc.setFont('helvetica','normal');
+        doc.text(' — All medications verified and accurate as of cycle date above', ML+7+doc.getTextWidth('Reconciliation Complete'), c2y);
+
+        // Divider
+        doc.setDrawColor(120,180,140); doc.setLineWidth(0.35);
+        doc.line(ML, c2y+4, ML+CW, c2y+4);
+
+        // Sign-off rows
+        const fw4 = CW/4;
+        const sigLabels1 = ['MSC PROVIDER NAME','SIGNATURE','DATE','TIME'];
+        const sigLabels2 = ['FACILITY STAFF SIGNATURE','DATE','TIME',''];
+        [sigLabels1, sigLabels2].forEach((lbls, ri) => {
+          const sy = c2y + 10 + ri*14;
+          lbls.forEach((lbl, ci) => {
+            if (!lbl) return;
+            const sx = ML + ci*fw4;
+            doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...G);
+            doc.text(lbl, sx+1, sy);
+            doc.setDrawColor(140,140,140); doc.setLineWidth(0.3);
+            doc.line(sx+1, sy+6, sx+fw4-3, sy+6);
+          });
+        });
+
+        y = c2y + 10 + 2*14 + 4;
+      });
+
+      // ── Summary / Sign-off page ───────────────────────────
+      doc.addPage(); drawMLHeader(); y = 26;
+
+      // Cycle period strip — always shown
+      doc.setFillColor(...PLG); doc.setDrawColor(...PUR); doc.setLineWidth(0.3);
+      doc.rect(ML, y, CW, 10, 'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...PUR);
+      doc.text('Cycle Medication Check Period', ML+4, y+4);
+      if (startTime || endTime) {
+        doc.setFont('helvetica','normal'); doc.setTextColor(45,55,72);
+        const tp = [];
+        if (startTime) tp.push('Start Time:  '+startTime);
+        if (endTime)   tp.push('End Time:  '+endTime);
+        doc.text(tp.join('          '), ML+4, y+8.2);
+      } else {
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+        doc.text('Start Time:', ML+4, y+8.2);
+        doc.setDrawColor(160,140,200); doc.setLineWidth(0.3);
+        doc.line(ML+26, y+8.5, ML+80, y+8.5);
+        doc.text('End Time:', ML+90, y+8.2);
+        doc.line(ML+110, y+8.5, ML+164, y+8.5);
+      }
+      y += 14;
+
+      // Pharmacist / Nurse sign-off
+      [[PUR,'MULTI SERVICE CARE PROVIDER'],[NV,'CHARGE NURSE SIGN-OFF']].forEach(([clr,title]) => {
+        doc.setFillColor(...clr); doc.rect(ML, y, CW, 8, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...WH);
+        doc.text(title, PW/2, y+5.5, {align:'center'});
+        y += 8;
+        const fw = CW/4;
+        ['Name:','Signature:','Date:','Time:'].forEach((lbl,i) => {
+          const fx = ML+i*fw;
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+          doc.text(lbl, fx+2, y+10);
+          doc.setDrawColor(...clr); doc.setLineWidth(0.4);
+          doc.line(fx+2, y+18, fx+fw-3, y+18);
+        });
+        y += 26;
+      });
+
+      // Footer note
+      y += 4;
+      doc.setFillColor(...PLG); doc.setDrawColor(...PUR); doc.setLineWidth(0.3);
+      doc.rect(ML, y, CW, 7, 'FD');
+      doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+      doc.text(
+        'Generated by AllRx Document Generator — Dazzle Health PC.  For internal use only.  CONFIDENTIAL',
+        PW/2, y+4.5, {align:'center'}
+      );
+
+      doc.putTotalPages(TPC);
+      const safe  = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+      const cdStr = cycleDate.replace(/[\s,]/g,'_');
+      const fname = `MedList_${safe}_${cdStr}.pdf`;
+      doc.save(fname);
+      showResult(null, fname, parsedData.length, parsedData.reduce((s,p)=>s+p.rxCount,0), 'medlist');
+    } catch(e) {
+      showError('Med List PDF generation failed: '+e.message);
+    } finally {
+      btn.disabled=false; btn.textContent='📋 Med List PDF';
+    }
+  }, 50);
+}
+
+// ── CONSOLIDATED VISIT FORM ────────────────────────────────────────────────
+function generateConsolidatedForm() {
+  if (!parsedData) return;
+  const btn = document.getElementById('gen-consolidated-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const facility  = document.getElementById('facility-name').value || 'ALF Facility';
+      const cdRaw     = document.getElementById('cycle-date').value;
+      const cycleDate = cdRaw
+        ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+        : new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      const csRaw = document.getElementById('cycle-start-date').value;
+      const cycleStartDate = csRaw
+        ? new Date(csRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+        : cycleDate;
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
+      const PW = doc.internal.pageSize.getWidth();
+      const PH = doc.internal.pageSize.getHeight();
+      const ML = 12, MR = 12, CW = PW - ML - MR;
+      const TPC = '{total_pages_count_string}';
+      const now = new Date();
+      const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+
+      const G   = [30,86,49];  const MG  = [46,125,50]; const LG  = [232,245,236];
+      const NV  = [31,56,100]; const WH  = [255,255,255];
+      const AMH = [180,100,0]; const AMB = [255,248,220];
+      const ORH = [190,90,0];  const ORB = [255,240,220];
+      const PU  = [85,60,154]; const PUB = [245,242,255];
+      const RD  = [180,30,40];
+
+      const ACT_LABEL = { REPLACE:'Replace pack', CHANGED:'Changed', NEW:'Replace pack /\nAdd if missing', LEAVE_AS_IS:'Leave as is', REMOVE:'Remove from cart' };
+      const ACT_BG    = { REPLACE:[243,252,243], CHANGED:[235,245,255], NEW:[255,255,225], LEAVE_AS_IS:[255,248,220], REMOVE:[255,235,235] };
+      const ACT_CLR   = { REPLACE:[30,86,49], CHANGED:[31,56,100], NEW:[20,110,50], LEAVE_AS_IS:[160,100,0], REMOVE:[180,30,40] };
+
+      // ── Build exceptions lookup directly from parsedDataC (self-contained, no globals needed)
+      const excRxSet    = new Set();
+      const excPtMedSet = new Set();
+      // excNotesByPt: ptKey → [{medName, note}]  — used by getExcNote for reliable note lookup
+      const excNotesByPt = new Map();
+
+      if (parsedDataC) {
+        parsedDataC.forEach(excPt => {
+          const ptKey = normPtName(excPt.name);
+          if (!excNotesByPt.has(ptKey)) excNotesByPt.set(ptKey, []);
+          // Patient-level "all meds" note
+          if (excAllPtKeys && excAllPtKeys.has(ptKey)) {
+            const allNote = (excNotesMap && excNotesMap.get(ptKey+'|__ALL__')) || '';
+            excNotesByPt.get(ptKey).push({ medName:'__ALL__', note: allNote });
+          }
+          (excPt.medications||[]).forEach(m => {
+            if (m.rxNum) excRxSet.add(String(m.rxNum).trim());
+            if (m.medName && ptKey !== '__EXCEPTIONS__') {
+              excPtMedSet.add(ptKey + '|' + normDrug(normSig(m.medName)));
+              // Store note against raw medName for fuzzy lookup
+              excNotesByPt.get(ptKey).push({ medName: m.medName, note: m.directions||'' });
+            }
+          });
+        });
+      }
+
+      function isExc(ptName, medName, rxNum) {
+        const ptKey = normPtName(ptName);
+        if (excAllPtKeys && excAllPtKeys.has(ptKey)) return true;
+        if (rxNum && excRxSet.has(String(rxNum).trim())) return true;
+        return excPtMedSet.has(ptKey + '|' + normDrug(normSig(medName)));
+      }
+
+      // getExcNote: reads directly from parsedDataC — no pre-built map, no timing issues
+      function getExcNote(ptName, medName) {
+        const ptKey = normPtName(ptName);
+        // Patient-level note (All meds exception)
+        if (excAllPtKeys && excAllPtKeys.has(ptKey)) {
+          return (excNotesMap && excNotesMap.get(ptKey + '|__ALL__')) || '';
+        }
+        // Look up directly in parsedDataC (same object set by parseExceptionsSheet)
+        if (!parsedDataC) return '';
+        const excPt = parsedDataC.find(p => normPtName(p.name) === ptKey);
+        if (!excPt) return '';
+        const exactKey = normDrug(normSig(medName));
+        const match = (excPt.medications || []).find(m =>
+          normDrug(normSig(m.medName || '')) === exactKey ||
+          drugSimilar(m.medName || '', medName)
+        );
+        return match ? (match.directions || '') : '';
+      }
+      function isShortCourse(dirs) {
+        return /\bfor\s+\d+\s+days?\b|\bfor\s+\d+\s+weeks?\b/i.test(dirs||'');
+      }
+
+      // ── Page header ────────────────────────────────────────────────────
+      function drawHeader() {
+        const pg = doc.internal.getCurrentPageInfo().pageNumber;
+        doc.setFillColor(...G); doc.rect(0,0,PW,22,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...WH);
+        doc.text('Dazzle Health PC', ML, 8);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(180,230,195);
+        doc.text('AllRx', ML, 14);
+        doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...WH);
+        doc.text('Consolidated Visit Form', PW/2, 8, {align:'center'});
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(200,235,210);
+        doc.text('Manifest + Med Cart Reconciliation + Cycle Check', PW/2, 14, {align:'center'});
+        const pill = 'Cycle: '+cycleDate;
+        const pw2 = doc.getTextWidth(pill)+8;
+        doc.setFillColor(...WH); doc.roundedRect(PW/2-pw2/2,15.5,pw2,5.5,2,2,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+        doc.text(pill, PW/2, 19.5, {align:'center'});
+        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.text('Facility: '+facility,        PW-MR, 6,  {align:'right'});
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(180,230,195);
+        doc.text('Cycle Start: '+cycleStartDate, PW-MR, 11, {align:'right'});
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...WH);
+        doc.text('Printed: '+printed,           PW-MR, 16, {align:'right'});
+        doc.text('Page '+pg+' of '+TPC,         PW-MR, 21, {align:'right'});
+        doc.setDrawColor(...G); doc.setLineWidth(0.8);
+        doc.line(ML, 22.5, PW-MR, 22.5);
+      }
+
+      drawHeader();
+
+      // ── Rule note banner (page 1 only) ─────────────────────────────────
+      let y = 25;
+      doc.setFillColor(255,248,220); doc.setDrawColor(160,100,0); doc.setLineWidth(0.3);
+      doc.rect(ML,y,CW,9,'FD');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(140,80,0);
+      doc.text('NOTE:', ML+3, y+6);
+      doc.setFont('helvetica','normal'); doc.setTextColor(80,55,0);
+      doc.text('If "Remove" checkbox is ticked — medication removed from list. Ignore in cart, do not act upon it.', ML+18, y+6);
+      y += 13;
+
+      // ── Section helper ─────────────────────────────────────────────────
+      // Routine (11 cols): no Prev Med — directions shown under med name
+      const HEAD_ROUTINE = ['#','Medication','Rx #','Prescriber','Action','Qty','Lbl','Exp','BOH','Notes','Verified'];
+      // PRN/Short Course (11 cols): no Indication col — directions already shown under med name
+      const HEAD_PRN     = ['#','Medication','Rx #','Prescriber','Action','Qty','Lbl','Exp','BOH','Notes','Verified'];
+
+      const COL_STD = {  // 12 cols (Routine)
+        0:{cellWidth:7,halign:'center',fontStyle:'bold'},
+        1:{cellWidth:'auto',fontSize:9.5,fontStyle:'bold'},
+        2:{cellWidth:15,halign:'center'},
+        3:{cellWidth:20,fontSize:8.5},
+        4:{cellWidth:26,halign:'center'},
+        5:{cellWidth:22,fontSize:8},        // Prev Med
+        6:{cellWidth:12,halign:'center'},
+        7:{cellWidth:12,halign:'center'},
+        8:{cellWidth:12,halign:'center'},
+        9:{cellWidth:14,halign:'center'},   // BOH
+        10:{cellWidth:40},                  // Notes
+        11:{cellWidth:20,halign:'center'},  // Verified
+      };
+      const COL_STD_PRN = {  // 11 cols (PRN/Short Course — no col 5)
+        0:{cellWidth:7,halign:'center',fontStyle:'bold'},
+        1:{cellWidth:'auto',fontSize:9.5,fontStyle:'bold'},
+        2:{cellWidth:15,halign:'center'},
+        3:{cellWidth:20,fontSize:8.5},
+        4:{cellWidth:26,halign:'center'},
+        5:{cellWidth:12,halign:'center'},   // Qty
+        6:{cellWidth:12,halign:'center'},   // Lbl
+        7:{cellWidth:12,halign:'center'},   // Exp
+        8:{cellWidth:14,halign:'center'},   // BOH
+        9:{cellWidth:40},                   // Notes
+        10:{cellWidth:20,halign:'center'},  // Verified
+      };
+
+      function drawSection(title, subtitle, rows, headRow, hdrFill, rowBg, lineClr, col5isInd, forceAction) {
+        if (!rows.length) return;
+        // Keep section header + at least one row on same page
+        if (y + 35 > PH - 10) { doc.addPage(); drawHeader(); y = 24; }
+        const hdrH = 11;
+        doc.setFillColor(...hdrFill);
+        doc.rect(ML, y, 5, hdrH, 'F');
+        doc.setFillColor(...rowBg); doc.setDrawColor(...hdrFill); doc.setLineWidth(0.5);
+        doc.rect(ML+5, y, CW-5, hdrH, 'FD');
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...hdrFill);
+        doc.text(title, ML+9, y+7.5);
+        if (subtitle) {
+          doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...hdrFill);
+          doc.text(subtitle, ML+CW-4, y+7.5, {align:'right'});
+        }
+        y += hdrH + 1;
+
+        // All sections: 11 cols (no Prev Med / Indication col)
+        const bodyData = rows.map((r,i) => {
+          const action = forceAction || r.action;
+          return [i+1, '', r.rx, r.pres, ACT_LABEL[action]||action,'','','','','',''];
+        });
+        const cbCols = [5,6,7];
+        const verCol = 10;
+
+        doc.autoTable({
+          startY: y, margin:{left:ML,right:MR,top:24},
+          head: [headRow], body: bodyData, theme:'grid',
+          rowPageBreak: 'avoid',
+          styles:{font:'helvetica',fontSize:9,fontStyle:'bold',
+                  cellPadding:{top:3,bottom:3,left:2,right:2},
+                  valign:'middle',overflow:'linebreak',lineColor:lineClr,lineWidth:0.2},
+          headStyles:{fillColor:hdrFill,textColor:WH,fontStyle:'bold',fontSize:9,
+                      halign:'center',valign:'middle',minCellHeight:14,
+                      cellPadding:{top:3,bottom:3,left:2,right:2}},
+          bodyStyles:{minCellHeight:22},
+          columnStyles: COL_STD_PRN,
+          didParseCell(data) {
+            if (data.section !== 'body') return;
+            const r = rows[data.row.index]; if (!r) return;
+            const action = forceAction || r.action;
+            data.cell.styles.fillColor = ACT_BG[action] || WH;
+            if (data.column.index === 4) {
+              data.cell.styles.textColor = ACT_CLR[action] || [60,60,60];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          },
+          didDrawCell(data) {
+            if (data.section !== 'body') return;
+            const {x,y:cy,width:cw,height:ch} = data.cell;
+            const ci = data.column.index;
+            // Column 1: medication name (bold) + directions in brackets (italic gray) below
+            if (ci === 1) {
+              const r = rows[data.row.index]; if (!r) return;
+              const pad = 2.5, maxW = cw - pad*2;
+              doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(30,30,30);
+              const medLines = doc.splitTextToSize(r.med||'', maxW);
+              if (r.dir) {
+                doc.text(medLines, x+pad, cy+5);
+                doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(90,90,90);
+                const dirLines = doc.splitTextToSize('('+r.dir+')', maxW);
+                doc.text(dirLines, x+pad, cy + 5 + medLines.length*4.5);
+              } else {
+                const textH = medLines.length * 4.5;
+                doc.text(medLines, x+pad, cy + (ch-textH)/2 + 3.5);
+              }
+            }
+            if (cbCols.includes(ci)) {
+              const sh=(ch-16)/2;
+              doc.setDrawColor(90,90,90); doc.setLineWidth(0.28);
+              doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(40,40,40);
+              ['Y','N'].forEach((opt,oi) => {
+                const bx=x+1.5, by=cy+sh+oi*8;
+                doc.rect(bx,by,5,5); doc.text(opt,bx+6.2,by+4);
+              });
+            }
+            if (ci===verCol) {
+              const bx=x+(cw-9)/2, by=cy+(ch-9)/2-2;
+              doc.setDrawColor(60,100,60); doc.setLineWidth(0.5); doc.rect(bx,by,9,9);
+              doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(60,100,60);
+              doc.text('Verified', x+cw/2, by+13, {align:'center'});
+            }
+          },
+          didDrawPage(){drawHeader();}, showHead:'everyPage',
+        });
+        y = doc.lastAutoTable.finalY + 5;
+      }
+
+      // ── Per-patient loop ────────────────────────────────────────────────
+      parsedData.forEach((patient, pIdx) => {
+        if (pIdx > 0) { doc.addPage(); drawHeader(); y = 25; }
+
+        // Build comparison lookup
+        const rxChangeMap = new Map();
+        const prevOnlyMeds = [];
+        if (comparisonResult) {
+          const ptComp = comparisonResult.find(r => normPtName(r.patient.name) === normPtName(patient.name));
+          if (ptComp) {
+            ptComp.changes.forEach(ch => {
+              if (!ch.curr) { prevOnlyMeds.push(ch); }
+              else { const rx = String(ch.curr.rxNum||'').trim(); if (rx) rxChangeMap.set(rx, ch); }
+            });
+          }
+        }
+
+        // Patient card
+        doc.setFillColor(...LG); doc.setDrawColor(...G); doc.setLineWidth(0.5);
+        doc.roundedRect(ML, y, CW, 38, 2,2,'FD');
+        doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...NV);
+        doc.text(patient.name, ML+4, y+11);
+        doc.setDrawColor(180,210,185); doc.setLineWidth(0.25);
+        doc.line(ML+4, y+13, ML+CW-4, y+13);
+        const iy = y+21;
+        [{lbl:'DOB',val:patient.dob,x:ML+4},{lbl:'AGE / SEX',val:patient.ageSex,x:ML+55}].forEach(({lbl,val,x})=>{
+          if (!val) return;
+          doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...G);
+          doc.text(lbl, x, iy);
+          doc.setFont('helvetica','normal'); doc.setTextColor(45,55,72);
+          doc.text('  '+val, x+doc.getTextWidth(lbl), iy);
+        });
+        // Two rows: pharmacy times + facility times
+        doc.setDrawColor(100,130,100); doc.setLineWidth(0.3);
+        const halfCW = CW/2 - 6;
+        [[y+27,'Reconciliation Start Time — Pharmacy:','Reconciliation End Time — Pharmacy:'],[y+34,'Reconciliation Start Time — Facility:','Reconciliation End Time — Facility:']].forEach(([ry,sl,el])=>{
+          doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+          doc.text(sl, ML+4, ry);
+          const slW = doc.getTextWidth(sl);
+          doc.line(ML+4+slW+1, ry+0.5, ML+4+halfCW, ry+0.5);
+          doc.text(el, ML+CW/2+2, ry);
+          const elW = doc.getTextWidth(el);
+          doc.line(ML+CW/2+2+elW+1, ry+0.5, ML+CW-4, ry+0.5);
+        });
+        y += 42;
+
+        // Categorize meds
+        const meds = (patient.medications && patient.medications.length)
+          ? patient.medications
+          : Array.from({length:patient.rxCount||0},(_,i)=>({num:i+1,medName:'',rxNum:patient.rxNums?.[i]||'',prescriber:patient.pcp||'',directions:''}));
+
+        const renderedRxSet = new Set();
+        const renderedDrugSet = new Set();
+        const routine=[], prn=[], shortCourse=[], exceptions=[];
+        const currPtKey = normPtName(patient.name);
+        const isAllMedsExcPt = excAllPtKeys && excAllPtKeys.has(currPtKey);
+
+        if (isAllMedsExcPt) {
+          // ── "All meds" exception patient — one summary row, no individual meds shown ──
+          exceptions.push({
+            med: 'All Medications',
+            rx: '', pres: '', action: null, prev: '',
+            ind: (excNotesMap && excNotesMap.get(currPtKey + '|__ALL__')) || ''
+          });
+        } else {
+          // ── Normal: categorize each medication ─────────────────────────────
+          meds.forEach(m => {
+            const rxKey = String(m.rxNum||'').trim();
+            const dk    = normDrug(normSig(m.medName||''));
+            if (rxKey && renderedRxSet.has(rxKey)) return;
+            if (dk    && renderedDrugSet.has(dk))   return;
+            if (rxKey) renderedRxSet.add(rxKey);
+            if (dk)    renderedDrugSet.add(dk);
+
+            const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
+            const action = ch ? ch.action : null;
+            const prev   = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
+            const row    = { med:m.medName||'', rx:m.rxNum||'', pres:m.prescriber||'', action, prev, ind:'', dir:m.directions||'' };
+
+            if (isExc(patient.name, m.medName, m.rxNum||'')) {
+              row.ind = getExcNote(patient.name, m.medName);
+              exceptions.push(row);
+            } else if (isPRN(m.directions)) {
+              row.ind = m.directions||'';
+              prn.push(row);
+            } else if (isShortCourse(m.directions)) {
+              row.ind = m.directions||'';
+              shortCourse.push(row);
+            } else {
+              routine.push(row);
+            }
+          });
+
+          // Prev-only meds (REMOVE/LEAVE_AS_IS from comparison)
+          prevOnlyMeds.forEach(ch => {
+            const prev = ch.prev || {};
+            const dk = normDrug(normSig(prev.medName||''));
+            if (dk && renderedDrugSet.has(dk)) return;
+            if (dk) renderedDrugSet.add(dk);
+            const row = { med:prev.medName||'', rx:prev.rxNum||'', pres:prev.prescriber||'', action:ch.action, prev:'', ind:'', dir:prev.directions||'' };
+            if (isExc(patient.name, prev.medName, prev.rxNum||'')) {
+              row.ind = getExcNote(patient.name, prev.medName);
+              exceptions.push(row);
+            } else if (isPRN(prev.directions)) { row.ind = prev.directions||''; prn.push(row); }
+            else { routine.push(row); }
+          });
+
+          // Third pass: add exception meds from parsedDataC not in the manifest
+          if (parsedDataC) {
+            parsedDataC.forEach(excPt => {
+              if (normPtName(excPt.name) !== currPtKey) return;
+              (excPt.medications||[]).forEach(m => {
+                if (!m.medName) return;
+                const dk = normDrug(normSig(m.medName));
+                if (dk && renderedDrugSet.has(dk)) return;
+                if (dk) renderedDrugSet.add(dk);
+                exceptions.push({ med:m.medName, rx:m.rxNum||'', pres:'',
+                                  action:null, prev:'', ind:m.directions||'' });
+              });
+            });
+          }
+        }
+
+        // ── Draw sections ───────────────────────────────────────────────
+        drawSection('SECTION 1 — ROUTINE (CYCLE) MEDICATIONS', null,
+          routine, HEAD_ROUTINE, G, LG, [180,210,185], false, null);
+
+        if (prn.length) {
+          drawSection('SECTION 2a — PRN / AS NEEDED', 'Leave in cart unless provider instructs removal',
+            prn, HEAD_PRN, AMH, AMB, [210,185,150], true, 'LEAVE_AS_IS');
+        }
+        if (shortCourse.length) {
+          drawSection('SECTION 2b — SHORT COURSE / LIMITED DURATION', 'Antibiotics & tapers — Always: Leave as is',
+            shortCourse, HEAD_PRN, ORH, ORB, [220,180,140], true, 'LEAVE_AS_IS');
+        }
+
+        // ── Section 3: Exceptions (no action cols) ──────────────────────
+        if (exceptions.length) {
+          // Ensure header + at least one row stay together on same page
+          if (y + 35 > PH - 10) { doc.addPage(); drawHeader(); y = 24; }
+          doc.setFillColor(...PU);
+          doc.rect(ML, y, 5, 11, 'F');
+          doc.setFillColor(...PUB); doc.setDrawColor(...PU); doc.setLineWidth(0.5);
+          doc.rect(ML+5, y, CW-5, 11, 'FD');
+          doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...PU);
+          doc.text('SECTION 3 — EXCEPTIONS', ML+9, y+7.5);
+          doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...PU);
+          doc.text('Sent outside regular cycle — note explains reason', ML+CW-4, y+7.5, {align:'right'});
+          y += 12;
+          const excBody = exceptions.map((r,i) => [i+1, r.med, r.rx, r.pres, r.ind||'']);
+          doc.autoTable({
+            startY:y, margin:{left:ML,right:MR,top:24},
+            head:[['#','Medication','Rx #','Prescriber','Exception Note / Reason']],
+            body:excBody, theme:'grid', rowPageBreak:'avoid',
+            styles:{font:'helvetica',fontSize:9,fontStyle:'bold',
+                    cellPadding:{top:3,bottom:3,left:2,right:2},
+                    valign:'middle',overflow:'linebreak',lineColor:[200,185,230],lineWidth:0.2},
+            headStyles:{fillColor:PU,textColor:WH,fontStyle:'bold',fontSize:9,
+                        halign:'center',valign:'middle',minCellHeight:14,
+                        cellPadding:{top:3,bottom:3,left:2,right:2}},
+            bodyStyles:{fillColor:PUB,minCellHeight:20},
+            columnStyles:{
+              0:{cellWidth:7,halign:'center',fontStyle:'bold'},
+              1:{cellWidth:55,fontSize:9.5,fontStyle:'bold'},
+              2:{cellWidth:18,halign:'center'},
+              3:{cellWidth:28},
+              4:{cellWidth:'auto'},
+            },
+            didDrawPage(){drawHeader();}, showHead:'everyPage',
+          });
+          y = doc.lastAutoTable.finalY + 5;
+        }
+
+        // ── Discrepancy write-in ─────────────────────────────────────────
+        ['** IN CART — NOT ON MED LIST','** ON MED LIST — NOT IN CART'].forEach(title => {
+          doc.autoTable({
+            startY:y, margin:{left:ML,right:MR,top:24},
+            head:[[{content:title,colSpan:6,styles:{fillColor:RD,textColor:WH,fontStyle:'bold',fontSize:9,halign:'center',cellPadding:{top:3,bottom:3}}}],
+                  ['#','Medication / Item','Rx #','Prescriber','Action / Notes','Resolved?']],
+            body:Array.from({length:3},(_,i)=>[i+1,'','','','','']),
+            theme:'grid', rowPageBreak:'avoid',
+            styles:{font:'helvetica',fontSize:9,fontStyle:'bold',cellPadding:{top:2.5,bottom:2.5,left:2,right:2},
+                    valign:'middle',lineColor:[220,180,180],lineWidth:0.2},
+            headStyles:{fillColor:[200,35,45],textColor:WH,fontStyle:'bold',fontSize:9,halign:'center'},
+            bodyStyles:{fillColor:WH,minCellHeight:14},
+            columnStyles:{0:{cellWidth:7,halign:'center'},2:{cellWidth:17,halign:'center'},3:{cellWidth:32},5:{cellWidth:22,halign:'center'}},
+            didDrawPage(){drawHeader();}, showHead:'everyPage',
+          });
+          y = doc.lastAutoTable.finalY + 3;
+        });
+
+        // ── Provider Notes + Sign-off side-by-side (~90mm total) ─────────
+        if (y + 90 > PH - 10) { doc.addPage(); drawHeader(); y = 24; }
+
+        // Provider Notes (8mm header + 25mm box = 33mm)
+        doc.setFillColor(...G); doc.rect(ML,y,CW,8,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...WH);
+        doc.text('PROVIDER NOTES', ML+5, y+5.5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(180,230,195);
+        doc.text('Clinical observations · Follow-up items · Medication concerns', ML+CW-4, y+5.5, {align:'right'});
+        y += 8;
+        doc.setFillColor(252,253,252); doc.setDrawColor(...G); doc.setLineWidth(0.4);
+        doc.rect(ML,y,CW,25,'FD');
+        doc.setDrawColor(200,220,205); doc.setLineWidth(0.2);
+        for (let ln=0;ln<2;ln++) doc.line(ML+6,y+9+ln*8,ML+CW-6,y+9+ln*8);
+        y += 28;
+
+        // ── Sign-off blocks SIDE BY SIDE (saves ~35mm vs stacked) ────────
+        const hw = (CW - 4) / 2;   // half-width for each block, 4mm gap between
+        const signBlocks = [
+          { clr:G,  title:'MULTI SERVICE CARE PROVIDER', fields:['Provider Name:','Signature:','Date:','Time:'], x:ML },
+          { clr:NV, title:'FACILITY STAFF SIGN-OFF',     fields:['Name:','Signature:','Date:','Time:'],         x:ML+hw+4 },
+        ];
+        const blockH = 30; // header 8mm + fields 22mm
+        signBlocks.forEach(({ clr, title, fields, x }) => {
+          doc.setFillColor(...clr); doc.rect(x,y,hw,8,'F');
+          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...WH);
+          doc.text(title, x+hw/2, y+5.5, {align:'center'});
+          doc.setFillColor(248,250,248); doc.setDrawColor(...clr); doc.setLineWidth(0.3);
+          doc.rect(x,y+8,hw,22,'FD');
+          const fw4 = hw/4;
+          fields.forEach((lbl,i) => {
+            const fx = x+i*fw4;
+            doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+            doc.text(lbl, fx+3, y+15);
+            doc.setDrawColor(...clr); doc.setLineWidth(0.35);
+            doc.line(fx+3, y+27, fx+fw4-2, y+27);
+          });
+        });
+        y += blockH + 5;
+
+        // Timing strip + filing note
+        doc.setFillColor(...LG); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+        doc.rect(ML,y,CW,8,'FD');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...G);
+        doc.text('Reconciliation Period:', ML+5, y+5.5);
+        doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
+        doc.text('Start Time:', ML+58, y+5.5);
+        doc.setDrawColor(130,150,130); doc.setLineWidth(0.3);
+        doc.line(ML+79,y+6,ML+136,y+6);
+        doc.setFont('helvetica','bold'); doc.setTextColor(...G);
+        doc.text('End Time:', ML+143, y+5.5);
+        doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
+        doc.line(ML+161,y+6,ML+CW-4,y+6);
+        y+=11;
+        doc.setFillColor(245,245,245); doc.setDrawColor(180,180,180); doc.setLineWidth(0.2);
+        doc.rect(ML,y,CW,6,'FD');
+        doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(100,100,100);
+        doc.text('Combined visit: attach to Medication List.  Standalone: file under Med Cart Recon.  CONFIDENTIAL', PW/2, y+4.3, {align:'center'});
+      });
+
+      doc.putTotalPages(TPC);
+      const safe = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+      doc.save('ConsolidatedVisitForm_'+safe+'_'+cycleDate.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');
+    } catch(e) {
+      alert('Error: '+e.message); console.error(e);
+    } finally {
+      const btn2 = document.getElementById('gen-consolidated-btn');
+      if (btn2) { btn2.disabled = false; btn2.textContent = '📋 Consolidated Visit Form (manifest + med cart recon)'; }
+    }
+  }, 100);
+}
+
+const ALL_BTNS = [
+  ['gen-btn','📊 .xlsx'],['gen-xls-btn','📊 .xls'],['gen-csv-btn','📋 .csv'],
+  ['gen-pdf-btn','📄 Recon PDF'],['gen-medlist-btn','📋 Med List PDF'],
+  ['gen-comp-btn','📊 Changes Report (.xlsx)'],['gen-comp-pdf-btn','📄 Changes PDF'],
+  ['gen-consolidated-btn','📋 Consolidated Visit Form'],
+];
+function resetBtns() { ALL_BTNS.forEach(([id,lbl])=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=lbl;}}); }
+
+function showResult(excelName, pdfName, patCount, rxCount, docType) {
+  document.getElementById('result-card').style.display = 'block';
+  const fname = excelName || pdfName;
+  const icon  = excelName ? '📊' : '📄';
+  const typeLabels = {
+    medlist: 'Medication List PDF — landscape, per-patient',
+    excel:   '3 sheets (Recon Form, Visit Log, Patient Summary)',
+  };
+  const type = excelName ? typeLabels.excel : (docType==='medlist' ? typeLabels.medlist : 'Recon Form PDF — landscape, per-patient tables');
+  document.getElementById('result-inner').innerHTML = `
+    <div class="result-file">
+      <div class="file-icon">${icon}</div>
+      <div>
+        <div class="file-name">${fname}</div>
+        <div class="file-meta">${patCount} patients · ${rxCount} Rx lines · ${type}</div>
+      </div>
+    </div>
+    <div class="status success" style="margin-bottom:10px">✓ File downloaded to your computer</div>
+    <div class="btn-row"><button class="btn btn-outline" onclick="resetApp()">↺ Generate another</button></div>`;
+  resetBtns();
+}
+
+function resetApp() {
+  parsedData=null; detectedFormat=null;
+  parsedDataA=null; parsedDataB=null;
+  facilityNameA=''; facilityNameB='';
+  comparisonResult=null;
+  ['step3-card','result-card'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('preview').style.display='none';
+  document.getElementById('upload-status-a').innerHTML='';
+  document.getElementById('upload-status-b').innerHTML='';
+  document.getElementById('parse-status').innerHTML='';
+  document.getElementById('error-area').innerHTML='';
+  document.getElementById('pdf-input-a').value='';
+  document.getElementById('pdf-input-b').value='';
+  document.getElementById('facility-name').value='';
+  document.getElementById('cycle-date').value='';
+  document.getElementById('start-time').value='';
+  document.getElementById('end-time').value='';
+  const fb=document.getElementById('facility-banner'); if(fb) fb.style.display='none';
+  const cs=document.getElementById('comp-section'); if(cs) cs.style.display='none';
+  const sa=document.getElementById('comp-summary-area'); if(sa) sa.innerHTML='';
+  resetBtns();
+}
+</script>
+</body>
+</html>
