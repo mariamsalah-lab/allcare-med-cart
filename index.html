@@ -986,9 +986,10 @@ function compareManifests(current, previous) {
       }
       if (rx) currSeenRx.add(rx);
 
-      // Same drug name+dose, different Rx# or different prescriber → same medication, skip duplicate
-      if (nd && currSeenDrugKey.has(nd)) return;
-      if (nd) currSeenDrugKey.add(nd);
+      // Same drug name + no Rx# → likely a parsing duplicate, skip
+      // If this entry has an Rx#, always keep it (different Rx = different supply batch — intentional overlap)
+      if (!rx && nd && currSeenDrugKey.has(nd)) return;
+      if (!rx && nd) currSeenDrugKey.add(nd);
 
       // Rule: current med marked Discontinued → Leave as is
       // Also mark any matching prev Rx as used to prevent double entry
@@ -1056,7 +1057,7 @@ function compareManifests(current, previous) {
       const med = ch.curr || ch.prev || {};
       const rxKey  = String(med.rxNum||'').trim();
       const nameKey = normDrug(normSig(med.medName||''));
-      const key = nameKey || rxKey;  // drug name is primary — same drug different Rx# = same entry
+      const key = rxKey || nameKey;  // Rx# is primary — same drug + different Rx# = different supply batch
       if (!key) return;
       if (seenMedKeys.has(key)) {
         const prevIdx = seenMedKeys.get(key);
@@ -2357,7 +2358,7 @@ function generatePDF() {
             }));
 
         const rowMeta = [];
-        // Render-time dedup: skip rows with same Rx# OR same drug name already rendered
+        // Render-time dedup: skip exact Rx# duplicates; drug-name dedup only when no Rx# (parsing fallback)
         const renderedRxSet   = new Set();
         const renderedDrugSet = new Set();
         let rowNum = 0;
@@ -2365,9 +2366,9 @@ function generatePDF() {
           const rxKey = String(m.rxNum||'').trim();
           const dk    = normDrug(normSig(m.medName||''));
           if (rxKey && renderedRxSet.has(rxKey)) return;
-          if (dk    && renderedDrugSet.has(dk))   return;
+          if (!rxKey && dk && renderedDrugSet.has(dk)) return;
           if (rxKey) renderedRxSet.add(rxKey);
-          if (dk)    renderedDrugSet.add(dk);
+          if (!rxKey && dk) renderedDrugSet.add(dk);
           rowNum++;
           const ch         = rxKey ? rxChangeMap.get(rxKey) : null;
           const action     = ch ? ch.action : null;
@@ -3315,9 +3316,9 @@ function generateConsolidatedForm() {
             const rxKey = String(m.rxNum||'').trim();
             const dk    = normDrug(normSig(m.medName||''));
             if (rxKey && renderedRxSet.has(rxKey)) return;
-            if (dk    && renderedDrugSet.has(dk))   return;
+            if (!rxKey && dk && renderedDrugSet.has(dk)) return;
             if (rxKey) renderedRxSet.add(rxKey);
-            if (dk)    renderedDrugSet.add(dk);
+            if (!rxKey && dk) renderedDrugSet.add(dk);
 
             const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
             const action = ch ? ch.action : null;
