@@ -3325,9 +3325,6 @@ function generateConsolidatedForm() {
             if (rxKey) renderedRxSet.add(rxKey);
             if (dk) renderedDrugSet.add(dk);
 
-            // Skip discontinued meds — not yet completed in ordering system
-            if (m.rxStatus === 'Discontinued') return;
-
             const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
             const action = ch ? ch.action : (comparisonResult ? null : 'NEW');
             const prev   = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
