@@ -759,6 +759,7 @@ async function handleSpreadsheetFile(file, slot='A') {
       gender:     col(['patient gender','gender','sex']),
       facility:   col(['facility name','facility']),
       rxStatus:   col(['rx status','rxstatus','status']),
+      priority:   col(['fill priority','rx priority','priority','fill type']),
     };
 
     // Build patient map from data rows
@@ -780,6 +781,7 @@ async function handleSpreadsheetFile(file, slot='A') {
       const prescriber = C.prescriber >= 0 ? String(row[C.prescriber]||'').trim() : '';
       const directions = C.directions >= 0 ? String(row[C.directions]||'').trim() : '';
       const rxStatus   = C.rxStatus   >= 0 ? String(row[C.rxStatus]  ||'').trim() : '';
+      const priority   = C.priority   >= 0 ? String(row[C.priority]  ||'').trim() : '';
       const dobRaw     = C.dob        >= 0 ? row[C.dob]                            : '';
       const genderRaw  = C.gender     >= 0 ? String(row[C.gender]    ||'').trim()  : '';
 
@@ -803,7 +805,7 @@ async function handleSpreadsheetFile(file, slot='A') {
       if (!p.ageSex && ageSex) p.ageSex = ageSex;
       p.rxCount++;
       if (rx) p.rxNums.push(rx);
-      p.medications.push({ num: p.rxCount, medName, rxNum: rx, prescriber, directions, rxStatus, isDuplicateRx });
+      p.medications.push({ num: p.rxCount, medName, rxNum: rx, prescriber, directions, rxStatus, priority, isDuplicateRx });
     }
 
     const result = order.map(k => patientMap.get(k));
@@ -3326,7 +3328,8 @@ function generateConsolidatedForm() {
             if (dk) renderedDrugSet.add(dk);
 
             const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
-            const action = ch ? ch.action : (comparisonResult ? null : 'NEW');
+            const isCyclePriority = /^(foa\s*cycle|cycle)$/i.test((m.priority||'').trim());
+            const action = ch ? ch.action : (comparisonResult ? null : (isCyclePriority ? 'NEW' : 'LEAVE_AS_IS'));
             const prev   = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
             const row    = { med:m.medName||'', rx:m.rxNum||'', pres:m.prescriber||'', action, prev, ind:'', dir:m.directions||'' };
 
