@@ -868,7 +868,9 @@ function normPtName(s) {
     .split(' ').filter(w => w.length > 1).join(' ');
 }
 function normDrug(s) {
-  return (s||'').toLowerCase().replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
+  return (s||'').toLowerCase()
+    .replace(/(\d),(\d{3})/g, '$1$2')   // strip thousands commas: 1,000 → 1000
+    .replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
 }
 // Strip SIG / frequency / route / dosing-code terms from drug names before comparison
 // So "Metoprolol 25mg T1T PO ONCE A DAY QD" and "Metoprolol 25mg T1T PO QD"
@@ -3061,9 +3063,23 @@ function generateConsolidatedForm() {
         if (excAllPtKeys && excAllPtKeys.has(ptKey)) return true;
         if (rxNum && excRxSet.has(String(rxNum).trim())) return true;
         if (excPtMedSet.has(ptKey + '|' + normDrug(normSig(medName)))) return true;
-        // Fuzzy: catch brand-vs-generic name differences (e.g. "Senna-Time" vs "Senna 8.6 Mg")
         const excMeds = excNotesByPt.get(ptKey) || [];
-        return excMeds.some(e => e.medName !== '__ALL__' && drugSimilar(e.medName, medName));
+        if (!excMeds.length) return false;
+        const na = normDrug(normSig(medName));
+        const wa = na.split(' ')[0];
+        const numsA = na.match(/\d+/g) || [];
+        return excMeds.some(e => {
+          if (e.medName === '__ALL__') return false;
+          if (drugSimilar(e.medName, medName)) return true;
+          // Lenient: same base drug word (>3 chars) + same dose numbers
+          // catches "Unit/ml" vs "Units/ml", "1,000 Mg" vs "1000 Mg", form abbreviations, etc.
+          const ne = normDrug(normSig(e.medName || ''));
+          const we = ne.split(' ')[0];
+          const numsE = ne.match(/\d+/g) || [];
+          return wa.length > 3 && wa === we &&
+                 numsA.length > 0 && numsA.length === numsE.length &&
+                 numsA.every((n, i) => n === numsE[i]);
+        });
       }
 
       // getExcNote: reads directly from parsedDataC — no pre-built map, no timing issues
