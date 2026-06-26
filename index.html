@@ -979,7 +979,18 @@ function compareManifests(current, previous) {
     const currSeenDrugKey = new Set(); // same drug name+dose, any Rx# or prescriber → treat as one
     const changes = [];
 
-    currMeds.forEach(m => {
+    // Sort so CYCLE priority entries are processed before non-CYCLE and before Discontinued.
+    // When drug-name dedup fires, the CYCLE (or active) entry wins.
+    const cyclePriorityVal = p => /\bcycle\b/i.test(p||'') ? 0 : 1;
+    const sortedCurrMeds = [...currMeds].sort((a, b) => {
+      const ac = cyclePriorityVal(a.priority), bc = cyclePriorityVal(b.priority);
+      if (ac !== bc) return ac - bc;
+      const ad = a.rxStatus === 'Discontinued' ? 1 : 0;
+      const bd = b.rxStatus === 'Discontinued' ? 1 : 0;
+      return ad - bd;
+    });
+
+    sortedCurrMeds.forEach(m => {
       const rx  = String(m.rxNum||'').trim();
       const nd  = normDrug(normSig(m.medName));
 
@@ -3335,7 +3346,16 @@ function generateConsolidatedForm() {
           });
         } else {
           // ── Normal: categorize each medication ─────────────────────────────
-          meds.forEach(m => {
+          // Sort so CYCLE priority wins over non-CYCLE and active wins over Discontinued
+          const sortByPriority = arr => [...arr].sort((a, b) => {
+            const ac = /\bcycle\b/i.test(a.priority||'') ? 0 : 1;
+            const bc = /\bcycle\b/i.test(b.priority||'') ? 0 : 1;
+            if (ac !== bc) return ac - bc;
+            const ad = a.rxStatus === 'Discontinued' ? 1 : 0;
+            const bd = b.rxStatus === 'Discontinued' ? 1 : 0;
+            return ad - bd;
+          });
+          sortByPriority(meds).forEach(m => {
             const rxKey = String(m.rxNum||'').trim();
             const dk    = normDrug(normSig(m.medName||''));
             if (rxKey && renderedRxSet.has(rxKey)) return;
@@ -3344,7 +3364,7 @@ function generateConsolidatedForm() {
             if (dk) renderedDrugSet.add(dk);
 
             const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
-            const isCyclePriority = /^(foa\s*cycle|cycle)$/i.test((m.priority||'').trim());
+            const isCyclePriority = /\bcycle\b/i.test((m.priority||'').trim());
             const action = ch ? ch.action : (comparisonResult ? null : (isCyclePriority ? 'NEW' : 'LEAVE_AS_IS'));
             const prev   = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
             const row    = { med:m.medName||'', rx:m.rxNum||'', pres:m.prescriber||'', action, prev, ind:'', dir:m.directions||'' };
