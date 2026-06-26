@@ -986,10 +986,9 @@ function compareManifests(current, previous) {
       }
       if (rx) currSeenRx.add(rx);
 
-      // Same drug name + no Rx# → likely a parsing duplicate, skip
-      // If this entry has an Rx#, always keep it (different Rx = different supply batch — intentional overlap)
-      if (!rx && nd && currSeenDrugKey.has(nd)) return;
-      if (!rx && nd) currSeenDrugKey.add(nd);
+      // Same drug name → same medication regardless of Rx#; deduplicate
+      if (nd && currSeenDrugKey.has(nd)) return;
+      if (nd) currSeenDrugKey.add(nd);
 
       // Rule: current med marked Discontinued → Leave as is
       // Also mark any matching prev Rx as used to prevent double entry
@@ -1057,7 +1056,7 @@ function compareManifests(current, previous) {
       const med = ch.curr || ch.prev || {};
       const rxKey  = String(med.rxNum||'').trim();
       const nameKey = normDrug(normSig(med.medName||''));
-      const key = rxKey || nameKey;  // Rx# is primary — same drug + different Rx# = different supply batch
+      const key = nameKey || rxKey;  // drug name is primary — same drug different Rx# = same entry
       if (!key) return;
       if (seenMedKeys.has(key)) {
         const prevIdx = seenMedKeys.get(key);
@@ -2358,7 +2357,7 @@ function generatePDF() {
             }));
 
         const rowMeta = [];
-        // Render-time dedup: skip exact Rx# duplicates; drug-name dedup only when no Rx# (parsing fallback)
+        // Render-time dedup: skip exact Rx# duplicates and same drug-name duplicates
         const renderedRxSet   = new Set();
         const renderedDrugSet = new Set();
         let rowNum = 0;
@@ -2366,9 +2365,9 @@ function generatePDF() {
           const rxKey = String(m.rxNum||'').trim();
           const dk    = normDrug(normSig(m.medName||''));
           if (rxKey && renderedRxSet.has(rxKey)) return;
-          if (!rxKey && dk && renderedDrugSet.has(dk)) return;
+          if (dk && renderedDrugSet.has(dk)) return;
           if (rxKey) renderedRxSet.add(rxKey);
-          if (!rxKey && dk) renderedDrugSet.add(dk);
+          if (dk) renderedDrugSet.add(dk);
           rowNum++;
           const ch         = rxKey ? rxChangeMap.get(rxKey) : null;
           const action     = ch ? ch.action : null;
@@ -3059,7 +3058,10 @@ function generateConsolidatedForm() {
         const ptKey = normPtName(ptName);
         if (excAllPtKeys && excAllPtKeys.has(ptKey)) return true;
         if (rxNum && excRxSet.has(String(rxNum).trim())) return true;
-        return excPtMedSet.has(ptKey + '|' + normDrug(normSig(medName)));
+        if (excPtMedSet.has(ptKey + '|' + normDrug(normSig(medName)))) return true;
+        // Fuzzy: catch brand-vs-generic name differences (e.g. "Senna-Time" vs "Senna 8.6 Mg")
+        const excMeds = excNotesByPt.get(ptKey) || [];
+        return excMeds.some(e => e.medName !== '__ALL__' && drugSimilar(e.medName, medName));
       }
 
       // getExcNote: reads directly from parsedDataC — no pre-built map, no timing issues
@@ -3082,6 +3084,9 @@ function generateConsolidatedForm() {
       }
       function isShortCourse(dirs) {
         return /\bfor\s+\d+\s+days?\b|\bfor\s+\d+\s+weeks?\b/i.test(dirs||'');
+      }
+      function isAntibiotic(medName) {
+        return /\b(nitrofurantoin|macrobid|macrodantin|amoxicillin|augmentin|amoxicillin.clavulanate|clavulanate|azithromycin|zithromax|cephalexin|keflex|cefdinir|omnicef|cefuroxime|ceftriaxone|cefazolin|cefadroxil|cefpodoxime|cefprozil|cephalosporin|ciprofloxacin|cipro|levofloxacin|levaquin|metronidazole|flagyl|trimethoprim|sulfamethoxazole|bactrim|doxycycline|vibramycin|minocycline|clindamycin|cleocin|mupirocin|bactroban|erythromycin|clarithromycin|biaxin|ampicillin|penicillin|dicloxacillin|nafcillin|oxacillin|vancomycin|linezolid|zyvox|tetracycline|tobramycin|gentamicin|neomycin|bacitracin)\b/i.test(medName||'');
       }
 
       // ── Page header ────────────────────────────────────────────────────
@@ -3316,19 +3321,22 @@ function generateConsolidatedForm() {
             const rxKey = String(m.rxNum||'').trim();
             const dk    = normDrug(normSig(m.medName||''));
             if (rxKey && renderedRxSet.has(rxKey)) return;
-            if (!rxKey && dk && renderedDrugSet.has(dk)) return;
+            if (dk && renderedDrugSet.has(dk)) return;
             if (rxKey) renderedRxSet.add(rxKey);
-            if (!rxKey && dk) renderedDrugSet.add(dk);
+            if (dk) renderedDrugSet.add(dk);
+
+            // Skip discontinued meds — not yet completed in ordering system
+            if (m.rxStatus === 'Discontinued') return;
 
             const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
-            const action = ch ? ch.action : null;
+            const action = ch ? ch.action : (comparisonResult ? null : 'NEW');
             const prev   = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
             const row    = { med:m.medName||'', rx:m.rxNum||'', pres:m.prescriber||'', action, prev, ind:'', dir:m.directions||'' };
 
             if (isExc(patient.name, m.medName, m.rxNum||'')) {
               row.ind = getExcNote(patient.name, m.medName);
               exceptions.push(row);
-            } else if (isPRN(m.directions)) {
+            } else if (isPRN(m.directions) || isAntibiotic(m.medName)) {
               row.ind = m.directions||'';
               prn.push(row);
             } else if (isShortCourse(m.directions)) {
