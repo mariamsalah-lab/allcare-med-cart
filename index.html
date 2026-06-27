@@ -2396,6 +2396,9 @@ function generatePDF() {
         // Previous-cycle-only meds (REMOVE or LEAVE_AS_IS) — appended at bottom
         prevOnlyMeds.forEach((ch) => {
           const prev = ch.prev || {};
+          const dk = normDrug(normSig(prev.medName||''));
+          if (dk && renderedDrugSet.has(dk)) return;  // same drug already shown from current meds
+          if (dk) renderedDrugSet.add(dk);
           rowNum++;
           rowMeta.push({
             cells:  [rowNum, prev.medName||'', prev.rxNum||'', prev.prescriber||'', ACT_LABEL[ch.action]||ch.action, '','','','','','',''],
