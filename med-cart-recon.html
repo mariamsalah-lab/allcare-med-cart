@@ -3377,9 +3377,10 @@ function generateConsolidatedForm() {
             const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
             const isCyclePriority = /\bcycle\b/i.test((m.priority||'').trim());
             let action = ch ? ch.action : (comparisonResult ? null : (isCyclePriority ? 'NEW' : 'LEAVE_AS_IS'));
-            // PRN meds are always Leave as is — even if compareManifests assigned REPLACE
-            // (e.g. same drug was CYCLE/routine last month, now PRN this month)
-            if (isPRN(m.directions)) action = 'LEAVE_AS_IS';
+            // Current month's nature always wins over the comparison result.
+            // If a med is PRN or short-course this month, it's Leave as is — even if
+            // compareManifests assigned REPLACE (e.g. was CYCLE/routine last month).
+            if (isPRN(m.directions) || isShortCourse(m.directions)) action = 'LEAVE_AS_IS';
             const prev   = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
             const row    = { med:m.medName||'', rx:m.rxNum||'', pres:m.prescriber||'', action, prev, ind:'', dir:m.directions||'' };
 
