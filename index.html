@@ -3363,8 +3363,11 @@ function generateConsolidatedForm() {
           sortByPriority(meds).forEach(m => {
             const rxKey = String(m.rxNum||'').trim();
             const dk    = normDrug(normSig(m.medName||''));
+            const mightBePRN = isPRN(m.directions) || isAntibiotic(m.medName);
             if (rxKey && renderedRxSet.has(rxKey)) return;
-            if (dk && renderedDrugSet.has(dk)) return;
+            // PRN meds bypass drug-name dedup so they can appear in Section 2a even if
+            // the same drug name already appeared as routine in Section 1
+            if (!mightBePRN && dk && renderedDrugSet.has(dk)) return;
             if (rxKey) renderedRxSet.add(rxKey);
             if (dk) renderedDrugSet.add(dk);
             // Also register prescribed (brand) name so exceptions file brand names are suppressed
