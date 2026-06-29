@@ -3442,10 +3442,18 @@ function generateConsolidatedForm() {
           doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...PU);
           doc.text('Sent outside regular cycle — note explains reason', ML+CW-4, y+7.5, {align:'right'});
           y += 12;
-          const excBody = exceptions.map((r,i) => [i+1, r.med, r.rx, r.pres, r.ind||'']);
+          // Dedup exceptions by drug name before rendering
+          const excSeen = new Set();
+          const uniqueExc = exceptions.filter(r => {
+            const dk = normDrug(normSig(r.med||''));
+            if (!dk) return true;
+            if (excSeen.has(dk)) return false;
+            excSeen.add(dk); return true;
+          });
+          const excBody = uniqueExc.map((r,i) => [i+1, r.med, r.rx, r.pres, '', r.ind||'']);
           doc.autoTable({
             startY:y, margin:{left:ML,right:MR,top:24},
-            head:[['#','Medication','Rx #','Prescriber','Exception Note / Reason']],
+            head:[['#','Medication','Rx #','Prescriber','BOH','Exception Note / Reason']],
             body:excBody, theme:'grid', rowPageBreak:'avoid',
             styles:{font:'helvetica',fontSize:9,fontStyle:'bold',
                     cellPadding:{top:3,bottom:3,left:2,right:2},
@@ -3459,7 +3467,8 @@ function generateConsolidatedForm() {
               1:{cellWidth:55,fontSize:9.5,fontStyle:'bold'},
               2:{cellWidth:18,halign:'center'},
               3:{cellWidth:28},
-              4:{cellWidth:'auto'},
+              4:{cellWidth:16,halign:'center'},
+              5:{cellWidth:'auto'},
             },
             didDrawPage(){drawHeader();}, showHead:'everyPage',
           });
@@ -3470,15 +3479,15 @@ function generateConsolidatedForm() {
         ['** IN CART — NOT ON MED LIST','** ON MED LIST — NOT IN CART'].forEach(title => {
           doc.autoTable({
             startY:y, margin:{left:ML,right:MR,top:24},
-            head:[[{content:title,colSpan:6,styles:{fillColor:RD,textColor:WH,fontStyle:'bold',fontSize:9,halign:'center',cellPadding:{top:3,bottom:3}}}],
-                  ['#','Medication / Item','Rx #','Prescriber','Action / Notes','Resolved?']],
-            body:Array.from({length:3},(_,i)=>[i+1,'','','','','']),
+            head:[[{content:title,colSpan:7,styles:{fillColor:RD,textColor:WH,fontStyle:'bold',fontSize:9,halign:'center',cellPadding:{top:3,bottom:3}}}],
+                  ['#','Medication / Item','Directions','Rx #','Prescriber','Notes','Resolved?']],
+            body:Array.from({length:3},(_,i)=>[i+1,'','','','','','']),
             theme:'grid', rowPageBreak:'avoid',
             styles:{font:'helvetica',fontSize:9,fontStyle:'bold',cellPadding:{top:2.5,bottom:2.5,left:2,right:2},
                     valign:'middle',lineColor:[220,180,180],lineWidth:0.2},
             headStyles:{fillColor:[200,35,45],textColor:WH,fontStyle:'bold',fontSize:9,halign:'center'},
             bodyStyles:{fillColor:WH,minCellHeight:14},
-            columnStyles:{0:{cellWidth:7,halign:'center'},2:{cellWidth:17,halign:'center'},3:{cellWidth:32},5:{cellWidth:22,halign:'center'}},
+            columnStyles:{0:{cellWidth:7,halign:'center'},1:{cellWidth:42},2:{cellWidth:55},3:{cellWidth:17,halign:'center'},4:{cellWidth:32},6:{cellWidth:22,halign:'center'}},
             didDrawPage(){drawHeader();}, showHead:'everyPage',
           });
           y = doc.lastAutoTable.finalY + 3;
