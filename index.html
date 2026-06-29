@@ -758,8 +758,9 @@ async function handleSpreadsheetFile(file, slot='A') {
       dob:        col(['patient date of birth','date of birth','dob','birth date']),
       gender:     col(['patient gender','gender','sex']),
       facility:   col(['facility name','facility']),
-      rxStatus:   col(['rx status','rxstatus','status']),
-      priority:   col(['fill priority','rx priority','priority','fill type']),
+      rxStatus:      col(['rx status','rxstatus','status']),
+      priority:      col(['fill priority','rx priority','priority','fill type']),
+      prescribedItem:col(['prescribed item']),
     };
 
     // Build patient map from data rows
@@ -780,8 +781,9 @@ async function handleSpreadsheetFile(file, slot='A') {
       const medName    = C.med        >= 0 ? String(row[C.med]       ||'').trim() : '';
       const prescriber = C.prescriber >= 0 ? String(row[C.prescriber]||'').trim() : '';
       const directions = C.directions >= 0 ? String(row[C.directions]||'').trim() : '';
-      const rxStatus   = C.rxStatus   >= 0 ? String(row[C.rxStatus]  ||'').trim() : '';
-      const priority   = C.priority   >= 0 ? String(row[C.priority]  ||'').trim() : '';
+      const rxStatus      = C.rxStatus      >= 0 ? String(row[C.rxStatus]      ||'').trim() : '';
+      const priority      = C.priority      >= 0 ? String(row[C.priority]      ||'').trim() : '';
+      const prescribedName= C.prescribedItem>= 0 ? String(row[C.prescribedItem]||'').trim() : '';
       const dobRaw     = C.dob        >= 0 ? row[C.dob]                            : '';
       const genderRaw  = C.gender     >= 0 ? String(row[C.gender]    ||'').trim()  : '';
 
@@ -805,7 +807,7 @@ async function handleSpreadsheetFile(file, slot='A') {
       if (!p.ageSex && ageSex) p.ageSex = ageSex;
       p.rxCount++;
       if (rx) p.rxNums.push(rx);
-      p.medications.push({ num: p.rxCount, medName, rxNum: rx, prescriber, directions, rxStatus, priority, isDuplicateRx });
+      p.medications.push({ num: p.rxCount, medName, rxNum: rx, prescriber, directions, rxStatus, priority, isDuplicateRx, prescribedName });
     }
 
     const result = order.map(k => patientMap.get(k));
@@ -3365,6 +3367,9 @@ function generateConsolidatedForm() {
             if (dk && renderedDrugSet.has(dk)) return;
             if (rxKey) renderedRxSet.add(rxKey);
             if (dk) renderedDrugSet.add(dk);
+            // Also register prescribed (brand) name so exceptions file brand names are suppressed
+            const pdk = normDrug(normSig(m.prescribedName||''));
+            if (pdk && pdk !== dk) renderedDrugSet.add(pdk);
 
             const ch     = rxKey ? rxChangeMap.get(rxKey) : null;
             const isCyclePriority = /\bcycle\b/i.test((m.priority||'').trim());
