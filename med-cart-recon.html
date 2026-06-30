@@ -3124,6 +3124,8 @@ function generateConsolidatedForm() {
       }
 
       // ── Page header ────────────────────────────────────────────────────
+      let currentPatientName = parsedData[0] ? parsedData[0].name : '';
+
       function drawHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
         doc.setFillColor(...G); doc.rect(0,0,PW,22,'F');
@@ -3140,13 +3142,16 @@ function generateConsolidatedForm() {
         doc.setFillColor(...WH); doc.roundedRect(PW/2-pw2/2,15.5,pw2,5.5,2,2,'F');
         doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
         doc.text(pill, PW/2, 19.5, {align:'center'});
+        // Right side: Facility, Patient name, Printed, Page
         doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
-        doc.text('Facility: '+facility,        PW-MR, 6,  {align:'right'});
-        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(180,230,195);
-        doc.text('Cycle Start: '+cycleStartDate, PW-MR, 11, {align:'right'});
+        doc.text('Facility: '+facility, PW-MR, 6, {align:'right'});
+        if (currentPatientName) {
+          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,235,150);
+          doc.text('Patient: '+currentPatientName, PW-MR, 13, {align:'right'});
+        }
         doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...WH);
-        doc.text('Printed: '+printed,           PW-MR, 16, {align:'right'});
-        doc.text('Page '+pg+' of '+TPC,         PW-MR, 21, {align:'right'});
+        doc.text('Printed: '+printed, PW-MR, 18, {align:'right'});
+        doc.text('Page '+pg+' of '+TPC, PW-MR, 22, {align:'right'});
         doc.setDrawColor(...G); doc.setLineWidth(0.8);
         doc.line(ML, 22.5, PW-MR, 22.5);
       }
@@ -3287,6 +3292,7 @@ function generateConsolidatedForm() {
 
       // ── Per-patient loop ────────────────────────────────────────────────
       parsedData.forEach((patient, pIdx) => {
+        currentPatientName = patient.name || '';
         if (pIdx > 0) { doc.addPage(); drawHeader(); y = 25; }
 
         // Build comparison lookup
