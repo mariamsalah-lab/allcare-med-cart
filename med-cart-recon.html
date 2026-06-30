@@ -3368,9 +3368,9 @@ function generateConsolidatedForm() {
             if (dk) renderedDrugSet.add(dk);
             const ch = rxKey ? rxChangeMap.get(rxKey) : null;
             const isCyclePriority = /\bcycle\b/i.test((m.priority||'').trim());
-            let action = ch ? ch.action : (isCyclePriority ? 'NEW' : 'LEAVE_AS_IS');
-            if (isPRN(m.directions) || isShortCourse(m.directions)) action = 'LEAVE_AS_IS';
-            const prev = ch && ch.prev && action !== 'NEW' ? ch.prev.medName : '';
+            // All-meds exception: always Leave as is — these were already sent before the cycle
+            const action = 'LEAVE_AS_IS';
+            const prev = '';
             exceptions.push({ med: m.medName||'', rx: rxKey, pres: m.prescriber||'', action, prev, ind: allNote, dir: m.directions||'' });
           });
         } else {
@@ -3486,10 +3486,10 @@ function generateConsolidatedForm() {
             if (excSeen.has(dk)) return false;
             excSeen.add(dk); return true;
           });
-          const excBody = uniqueExc.map((r,i) => [i+1, r.med, r.rx, r.pres, '', r.ind||'']);
+          const excBody = uniqueExc.map((r,i) => [i+1, r.med, r.rx, r.pres, '', ACT_LABEL[r.action]||'Leave as is', r.ind||'']);
           doc.autoTable({
             startY:y, margin:{left:ML,right:MR,top:24},
-            head:[['#','Medication','Rx #','Prescriber','BOH','Exception Note / Reason']],
+            head:[['#','Medication','Rx #','Prescriber','BOH','Action','Exception Note / Reason']],
             body:excBody, theme:'grid', rowPageBreak:'avoid',
             styles:{font:'helvetica',fontSize:9,fontStyle:'bold',
                     cellPadding:{top:3,bottom:3,left:2,right:2},
@@ -3500,11 +3500,18 @@ function generateConsolidatedForm() {
             bodyStyles:{fillColor:PUB,minCellHeight:20},
             columnStyles:{
               0:{cellWidth:7,halign:'center',fontStyle:'bold'},
-              1:{cellWidth:55,fontSize:9.5,fontStyle:'bold'},
+              1:{cellWidth:52,fontSize:9.5,fontStyle:'bold'},
               2:{cellWidth:18,halign:'center'},
-              3:{cellWidth:28},
-              4:{cellWidth:16,halign:'center'},
-              5:{cellWidth:'auto'},
+              3:{cellWidth:26},
+              4:{cellWidth:14,halign:'center'},
+              5:{cellWidth:24,halign:'center'},
+              6:{cellWidth:'auto'},
+            },
+            didParseCell(data) {
+              if (data.section !== 'body' || data.column.index !== 5) return;
+              const r = uniqueExc[data.row.index]; if (!r) return;
+              data.cell.styles.textColor = ACT_CLR[r.action] || [160,100,0];
+              data.cell.styles.fillColor = ACT_BG[r.action] || PUB;
             },
             didDrawPage(){drawHeader();}, showHead:'everyPage',
           });
