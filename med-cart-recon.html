@@ -899,9 +899,11 @@ function drugSimilar(a, b) {
   const numsB = nb.match(/\d+/g) || [];
   if (numsA.length !== numsB.length) return false;
   if (!numsA.every((n, i) => n === numsB[i])) return false;
-  // Tablet ↔ Capsule/Cap: same name + same dose, only dosage form differs → same drug
-  const fa = na.replace(/\b(tablets?|tabs?|capsules?|caps?)\b/g, 'form');
-  const fb = nb.replace(/\b(tablets?|tabs?|capsules?|caps?)\b/g, 'form');
+  // Tablet ↔ Capsule/Cap + strip pharmaceutical salt qualifiers (Calcium, HCl, Tartrate…)
+  // so "Atorvastatin Calcium 40 Mg Tab" == "Atorvastatin 40 Mg Tablet".
+  const SALT = /\b(calcium|hcl|hydrochloride|sodium|potassium|tartrate|besylate|mesylate|maleate|fumarate|succinate|gluconate|acetate|phosphate|sulfate|citrate|bromide|chloride|magnesium)\b/g;
+  const fa = na.replace(/\b(tablets?|tabs?|capsules?|caps?)\b/g,'form').replace(SALT,'').replace(/\s+/g,' ').trim();
+  const fb = nb.replace(/\b(tablets?|tabs?|capsules?|caps?)\b/g,'form').replace(SALT,'').replace(/\s+/g,' ').trim();
   return fa === fb;
 }
 
@@ -3348,6 +3350,7 @@ function generateConsolidatedForm() {
 
         const renderedRxSet = new Set();
         const renderedDrugSet = new Set();
+        const renderedDrugDirPairs = []; // fuzzy dedup: {dk, dirFP} for same-name-variant + same-sig check
         const routine=[], prn=[], shortCourse=[], exceptions=[];
         const currPtKey = normPtName(patient.name);
         const isAllMedsExcPt = excAllPtKeys && excAllPtKeys.has(currPtKey);
@@ -3400,9 +3403,12 @@ function generateConsolidatedForm() {
             const dirFP2 = normDrug(normSig(m.directions||'')).substring(0, 25);
             const dedupKey = (dk && dirFP2) ? (dk + '|' + dirFP2) : '';
             if (!mightBePRN && dedupKey && renderedDrugSet.has(dedupKey)) return;
+            // Fuzzy dedup: same drug (name-variant / salt-qualifier difference) + same sig = refill
+            if (!mightBePRN && dk && dirFP2 &&
+                renderedDrugDirPairs.some(p => p.dirFP === dirFP2 && drugSimilar(dk, p.dk))) return;
             if (rxKey) renderedRxSet.add(rxKey);
             if (dedupKey) renderedDrugSet.add(dedupKey);
-            if (dk) renderedDrugSet.add(dk); // bare key — for prevOnlyMeds suppression
+            if (dk) { renderedDrugSet.add(dk); if (dirFP2) renderedDrugDirPairs.push({dk, dirFP: dirFP2}); }
             // Also register prescribed (brand) name so exceptions file brand names are suppressed
             const pdk = normDrug(normSig(m.prescribedName||''));
             if (pdk && pdk !== dk) renderedDrugSet.add(pdk);
@@ -3435,9 +3441,17 @@ function generateConsolidatedForm() {
           prevOnlyMeds.forEach(ch => {
             const prev = ch.prev || {};
             const dk = normDrug(normSig(prev.medName||''));
-            // Use drugSimilar so name variants (e.g. "Tab" vs "Tablet", different brand/generic)
-            // across months still suppress the old entry when the current one is already rendered.
-            if (dk && [...renderedDrugSet].some(rdk => drugSimilar(dk, rdk))) return;
+            const prevDirFP = normDrug(normSig(prev.directions||'')).substring(0, 25);
+            // Suppress when the same drug (fuzzy name match + same sig) was already rendered
+            // from the current cycle — handles salt-qualifier variants (Atorvastatin Calcium vs
+            // Atorvastatin) and minor sig wording differences that normSig collapses to the same FP.
+            const alreadyRendered = dk && (
+              renderedDrugSet.has(dk) ||
+              renderedDrugDirPairs.some(p =>
+                drugSimilar(dk, p.dk) && (!prevDirFP || !p.dirFP || prevDirFP === p.dirFP)
+              )
+            );
+            if (alreadyRendered) return;
             if (dk) renderedDrugSet.add(dk);
             const row = { med:prev.medName||'', rx:prev.rxNum||'', pres:prev.prescriber||'', action:ch.action, prev:'', ind:'', dir:prev.directions||'' };
             if (isExc(patient.name, prev.medName, prev.rxNum||'')) {
