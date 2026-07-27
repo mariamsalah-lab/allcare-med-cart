@@ -3392,6 +3392,10 @@ function generateConsolidatedForm() {
             const rxKey = String(m.rxNum||'').trim();
             const dk    = normDrug(normSig(m.medName||''));
             const mightBePRN = isPRN(m.directions) || isAntibiotic(m.medName);
+            // DEBUG: log every med for Buettner
+            if (/buettner/i.test(patient.name)) {
+              console.log('[DEBUG]', patient.name, '| rx:', rxKey, '| med:', m.medName, '| dir:', m.directions, '| rxInSet:', renderedRxSet.has(rxKey), '| dkInSet:', renderedDrugSet.has(dk), '| !rxKey:', !rxKey);
+            }
             if (rxKey && renderedRxSet.has(rxKey)) return;
             // Drug-name dedup only fires when there is NO Rx#. Every med with an Rx# is
             // already deduplicated by renderedRxSet above; gating by drug name on top would
