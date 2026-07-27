@@ -1003,9 +1003,13 @@ function compareManifests(current, previous) {
       }
       if (rx) currSeenRx.add(rx);
 
-      // Same drug name → same medication regardless of Rx#; deduplicate
-      if (nd && currSeenDrugKey.has(nd)) return;
-      if (nd) currSeenDrugKey.add(nd);
+      // Same drug name + same dosing schedule → deduplicate.
+      // Two entries for the same drug but different schedules (e.g. noon vs bedtime)
+      // are distinct prescriptions and must each produce their own rxChangeMap entry.
+      const dirFP = normDrug(normSig(m.directions||'')).substring(0, 25);
+      const drugDirKey = nd ? (nd + (dirFP ? '|' + dirFP : '')) : '';
+      if (drugDirKey && currSeenDrugKey.has(drugDirKey)) return;
+      if (drugDirKey) currSeenDrugKey.add(drugDirKey);
 
       // Rule: current med marked Discontinued → Leave as is
       // Also mark any matching prev Rx as used to prevent double entry
@@ -3389,11 +3393,16 @@ function generateConsolidatedForm() {
             const dk    = normDrug(normSig(m.medName||''));
             const mightBePRN = isPRN(m.directions) || isAntibiotic(m.medName);
             if (rxKey && renderedRxSet.has(rxKey)) return;
+            // Build a direction fingerprint so same drug with different dosing schedules
+            // (e.g., Quetiapine noon dose vs bedtime dose) are treated as distinct entries.
+            const dirFP2 = normDrug(normSig(m.directions||'')).substring(0, 25);
+            const dedupKey = dk ? (dk + (dirFP2 ? '|' + dirFP2 : '')) : '';
             // PRN meds bypass drug-name dedup so they can appear in Section 2a even if
             // the same drug name already appeared as routine in Section 1
-            if (!mightBePRN && dk && renderedDrugSet.has(dk)) return;
+            if (!mightBePRN && dedupKey && renderedDrugSet.has(dedupKey)) return;
             if (rxKey) renderedRxSet.add(rxKey);
-            if (dk) renderedDrugSet.add(dk);
+            if (dedupKey) renderedDrugSet.add(dedupKey);
+            if (dk) renderedDrugSet.add(dk); // bare key — for prevOnlyMeds and prescribedName dedup
             // Also register prescribed (brand) name so exceptions file brand names are suppressed
             const pdk = normDrug(normSig(m.prescribedName||''));
             if (pdk && pdk !== dk) renderedDrugSet.add(pdk);
