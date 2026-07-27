@@ -3393,16 +3393,13 @@ function generateConsolidatedForm() {
             const dk    = normDrug(normSig(m.medName||''));
             const mightBePRN = isPRN(m.directions) || isAntibiotic(m.medName);
             if (rxKey && renderedRxSet.has(rxKey)) return;
-            // Build a direction fingerprint so same drug with different dosing schedules
-            // (e.g., Quetiapine noon dose vs bedtime dose) are treated as distinct entries.
-            const dirFP2 = normDrug(normSig(m.directions||'')).substring(0, 25);
-            const dedupKey = dk ? (dk + (dirFP2 ? '|' + dirFP2 : '')) : '';
-            // PRN meds bypass drug-name dedup so they can appear in Section 2a even if
-            // the same drug name already appeared as routine in Section 1
-            if (!mightBePRN && dedupKey && renderedDrugSet.has(dedupKey)) return;
+            // Drug-name dedup only fires when there is NO Rx#. Every med with an Rx# is
+            // already deduplicated by renderedRxSet above; gating by drug name on top would
+            // silently drop same-drug prescriptions with different dosing schedules
+            // (e.g. Quetiapine noon vs bedtime, each carrying its own Rx#).
+            if (!mightBePRN && !rxKey && dk && renderedDrugSet.has(dk)) return;
             if (rxKey) renderedRxSet.add(rxKey);
-            if (dedupKey) renderedDrugSet.add(dedupKey);
-            if (dk) renderedDrugSet.add(dk); // bare key — for prevOnlyMeds and prescribedName dedup
+            if (dk) renderedDrugSet.add(dk);
             // Also register prescribed (brand) name so exceptions file brand names are suppressed
             const pdk = normDrug(normSig(m.prescribedName||''));
             if (pdk && pdk !== dk) renderedDrugSet.add(pdk);
