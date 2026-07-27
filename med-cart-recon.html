@@ -2403,7 +2403,7 @@ function generatePDF() {
         prevOnlyMeds.forEach((ch) => {
           const prev = ch.prev || {};
           const dk = normDrug(normSig(prev.medName||''));
-          if (dk && renderedDrugSet.has(dk)) return;  // same drug already shown from current meds
+          if (dk && [...renderedDrugSet].some(rdk => drugSimilar(dk, rdk))) return;  // same drug already shown from current meds
           if (dk) renderedDrugSet.add(dk);
           rowNum++;
           rowMeta.push({
@@ -3435,7 +3435,9 @@ function generateConsolidatedForm() {
           prevOnlyMeds.forEach(ch => {
             const prev = ch.prev || {};
             const dk = normDrug(normSig(prev.medName||''));
-            if (dk && renderedDrugSet.has(dk)) return;
+            // Use drugSimilar so name variants (e.g. "Tab" vs "Tablet", different brand/generic)
+            // across months still suppress the old entry when the current one is already rendered.
+            if (dk && [...renderedDrugSet].some(rdk => drugSimilar(dk, rdk))) return;
             if (dk) renderedDrugSet.add(dk);
             const row = { med:prev.medName||'', rx:prev.rxNum||'', pres:prev.prescriber||'', action:ch.action, prev:'', ind:'', dir:prev.directions||'' };
             if (isExc(patient.name, prev.medName, prev.rxNum||'')) {
