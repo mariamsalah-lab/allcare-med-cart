@@ -3511,10 +3511,10 @@ function generateConsolidatedForm() {
             if (excSeen.has(dk)) return false;
             excSeen.add(dk); return true;
           });
-          const excBody = uniqueExc.map((r,i) => [i+1, r.med, r.rx, r.pres, '', ACT_LABEL[r.action]||'Leave as is', r.ind||'']);
+          const excBody = uniqueExc.map((r,i) => [i+1, r.med, r.rx, r.pres, '', r.ind||'']);
           doc.autoTable({
             startY:y, margin:{left:ML,right:MR,top:24},
-            head:[['#','Medication','Rx #','Prescriber','BOH','Action','Exception Note / Reason']],
+            head:[['#','Medication','Rx #','Prescriber','BOH','Exception Note / Reason']],
             body:excBody, theme:'grid', rowPageBreak:'avoid',
             styles:{font:'helvetica',fontSize:9,fontStyle:'bold',
                     cellPadding:{top:3,bottom:3,left:2,right:2},
@@ -3529,8 +3529,7 @@ function generateConsolidatedForm() {
               2:{cellWidth:18,halign:'center'},
               3:{cellWidth:26},
               4:{cellWidth:14,halign:'center'},
-              5:{cellWidth:24,halign:'center'},
-              6:{cellWidth:'auto'},
+              5:{cellWidth:'auto'},
             },
             didParseCell(data) {
               if (data.section !== 'body' || data.column.index !== 5) return;
