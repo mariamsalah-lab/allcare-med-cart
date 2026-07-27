@@ -3392,18 +3392,17 @@ function generateConsolidatedForm() {
             const rxKey = String(m.rxNum||'').trim();
             const dk    = normDrug(normSig(m.medName||''));
             const mightBePRN = isPRN(m.directions) || isAntibiotic(m.medName);
-            // DEBUG: log every med for Buettner
-            if (/buettner/i.test(patient.name)) {
-              console.log('[DEBUG]', patient.name, '| rx:', rxKey, '| med:', m.medName, '| dir:', m.directions, '| rxInSet:', renderedRxSet.has(rxKey), '| dkInSet:', renderedDrugSet.has(dk), '| !rxKey:', !rxKey);
-            }
             if (rxKey && renderedRxSet.has(rxKey)) return;
-            // Drug-name dedup only fires when there is NO Rx#. Every med with an Rx# is
-            // already deduplicated by renderedRxSet above; gating by drug name on top would
-            // silently drop same-drug prescriptions with different dosing schedules
-            // (e.g. Quetiapine noon vs bedtime, each carrying its own Rx#).
-            if (!mightBePRN && !rxKey && dk && renderedDrugSet.has(dk)) return;
+            // Direction-aware dedup: same drug + same sig = refill (show one).
+            // Same drug + different sig = distinct prescription (show both).
+            // If directions are absent we can't distinguish, so skip dedup entirely
+            // rather than collapse prescriptions we can't tell apart.
+            const dirFP2 = normDrug(normSig(m.directions||'')).substring(0, 25);
+            const dedupKey = (dk && dirFP2) ? (dk + '|' + dirFP2) : '';
+            if (!mightBePRN && dedupKey && renderedDrugSet.has(dedupKey)) return;
             if (rxKey) renderedRxSet.add(rxKey);
-            if (dk) renderedDrugSet.add(dk);
+            if (dedupKey) renderedDrugSet.add(dedupKey);
+            if (dk) renderedDrugSet.add(dk); // bare key — for prevOnlyMeds suppression
             // Also register prescribed (brand) name so exceptions file brand names are suppressed
             const pdk = normDrug(normSig(m.prescribedName||''));
             if (pdk && pdk !== dk) renderedDrugSet.add(pdk);
