@@ -3863,9 +3863,8 @@ async function parseNDECWPdf(file) {
     return meds;
   }
 
-  // ── Log extracted text for debugging ──
-  console.log('[ND Parser] allItems count:', allItems.length);
-  console.log('[ND Parser] first 60 items:', allItems.slice(0,60).map(it=>JSON.stringify({t:it.text,x:it.x,y:it.y})));
+  // ── Diagnostic alert (temporary) ──
+  alert('PDF extracted ' + allItems.length + ' text items.\n\nFirst 30:\n' + allItems.slice(0,30).map(it=>it.text).join('\n'));
 
   // ── Find section boundaries ──
   const chgIdx = allItems.findIndex(it => /medication changes/i.test(it.text));
