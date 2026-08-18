@@ -3969,6 +3969,9 @@ async function parseNDECWPdf(file) {
   const colSplitX = findX(/^medication details$/i, curIdx - 1) || findX(/details/i, curIdx - 1) || 350;
   const colSplit = colSplitX;
   const tableItems = allItems.slice(mnIdx >= 0 ? mnIdx + 1 : curIdx + 1).filter(it => !SKIP.test(it.text));
+  // Diagnostic: show colSplit and first 20 tableItems
+  alert('colSplit=' + colSplit + '\ncurIdx=' + curIdx + ' mnIdx=' + mnIdx + '\nFirst 20 tableItems:\n' +
+    tableItems.slice(0,20).map(it => 'x='+it.x+' y='+it.y+' pg='+it.pg+' "'+it.text+'"').join('\n'));
   const medications = buildMeds(groupLines(tableItems, colSplit), false);
 
   if (!patientName) throw new Error('Could not determine patient name from PDF');
