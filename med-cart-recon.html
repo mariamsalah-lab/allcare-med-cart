@@ -3865,8 +3865,21 @@ async function parseNDECWPdf(file) {
 
   // ── Find section boundaries ──
   const chgIdx = allItems.findIndex(it => /medication changes/i.test(it.text));
-  const curIdx = allItems.findIndex(it => /^current medications$/i.test(it.text))
-              || allItems.findIndex(it => /current medications/i.test(it.text));
+  const _findCur = () => {
+    // Try progressively looser matches
+    const patterns = [
+      /^current medications$/i,
+      /^current medication list$/i,
+      /current medications/i,
+      /current medication/i,
+    ];
+    for (const re of patterns) {
+      const idx = allItems.findIndex(it => re.test(it.text));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+  const curIdx = _findCur();
   if (curIdx < 0) throw new Error('No "Current Medications" section found in PDF');
 
   // ── Parse "Medication Changes & Refills" section ──
