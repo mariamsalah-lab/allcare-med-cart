@@ -3822,7 +3822,9 @@ async function parseNDECWPdf(file) {
   const hm = fullText.match(/([A-Z]{2,}[A-Z,\s]+?)\s+["""'']([^"""'']+)["""']\s+DOB:\s*([\d\/]+)\s+\((\d+\s+yo\s+[MF])\)/i);
   if (hm) {
     // Normalize "KIM, Kwang" → title case "Kim, Kwang"
-    patientName = hm[1].trim().split(',').map((p,i) => {
+    // Strip ECW header words that OCR may include before the actual name
+    const rawName = hm[1].trim().replace(/^(summary|of|today|today'?s|visit|patient|record)\s+/gi, '').trim();
+    patientName = rawName.split(',').map((p,i) => {
       const t = p.trim();
       return i === 0 ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : t;
     }).join(', ');
@@ -3845,18 +3847,21 @@ async function parseNDECWPdf(file) {
   const SKIP = /summary of today|dazzle health|eclinicalworks|confidential|destroy|intended recipient|please review|medication name|medication details|medication updates|^\d+\/\d+$/i;
   const STATUS_TAG = /^(start|started|stop|stopped|changed|refilled|refill|restarted)$/i;
 
-  // Helper: group items by y-line, sort by y, then split into left/right columns
+  // Helper: group items by page+y-line, sort, then split into left/right columns.
+  // Page offset prevents y-coords from page 1 and page 2 (both 0-792) from merging.
   function groupLines(items, colSplit) {
     const yTol = isScanned ? 10 : 6;
+    const PAGE_OFF = 10000;
     const lines = [];
     items.forEach(it => {
-      const found = lines.find(l => Math.abs(l.y - it.y) <= yTol);
+      const absY = (it.pg - 1) * PAGE_OFF + it.y;
+      const found = lines.find(l => Math.abs(l.absY - absY) <= yTol);
       if (found) found.items.push(it);
-      else lines.push({ y: it.y, items: [it] });
+      else lines.push({ absY, y: it.y, pg: it.pg, items: [it] });
     });
-    lines.sort((a,b) => a.y - b.y);
+    lines.sort((a,b) => a.absY - b.absY);
     return lines.map(l => ({
-      y: l.y,
+      y: l.y, absY: l.absY,
       left:   l.items.filter(it => it.x < colSplit && !STATUS_TAG.test(it.text)).map(it => it.text).join(' ').trim(),
       right:  l.items.filter(it => it.x >= colSplit).map(it => it.text).join(' ').trim(),
       status: (l.items.find(it => STATUS_TAG.test(it.text)) || {}).text || '',
@@ -3866,11 +3871,12 @@ async function parseNDECWPdf(file) {
   // Helper: build medication list from grouped lines
   function buildMeds(lines, hasStatus) {
     const meds = [];
-    let cur = null, lastLeftY = -999;
-    lines.forEach(({ y, left, right, status }) => {
+    let cur = null, lastAbsY = -999;
+    const contThresh = isScanned ? 18 : 22;
+    lines.forEach(({ y, absY, left, right, status }) => {
       if (!left && !right && !status) return;
       if (left || (hasStatus && status)) {
-        const isCont = cur && (y - lastLeftY) < 22 && !status;
+        const isCont = cur && (absY - lastAbsY) < contThresh && !status;
         if (isCont) {
           cur.medName += ' ' + left;
           if (right) cur.directions += ' ' + right;
@@ -3878,7 +3884,7 @@ async function parseNDECWPdf(file) {
           if (cur) meds.push(cur);
           cur = { medName: left, directions: right, status: status ? status.charAt(0).toUpperCase()+status.slice(1).toLowerCase() : '' };
         }
-        if (left) lastLeftY = y;
+        if (left) lastAbsY = absY;
       } else if (right && cur) {
         cur.directions += ' ' + right;
       }
