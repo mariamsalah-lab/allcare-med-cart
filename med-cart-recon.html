@@ -3775,20 +3775,43 @@ async function parseNDECWPdf(file) {
   const ab = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
 
-  // Extract all text items with coordinates
-  let allItems = [];
+  // ── Extract text (digital) or OCR (scanned) ──
+  let allItems = [];   // {text, x, y, pg}
+  let isScanned = false;
+
   for (let pg = 1; pg <= pdf.numPages; pg++) {
     const page = await pdf.getPage(pg);
-    const content = await page.getTextContent();
     const vp = page.getViewport({ scale: 1 });
-    content.items.filter(it => it.str.trim()).forEach(it => {
-      allItems.push({
-        text: it.str.trim(),
-        x: Math.round(it.transform[4]),
-        y: Math.round(vp.height - it.transform[5]),
-        pg
+    const content = await page.getTextContent();
+    const digital = content.items.filter(it => it.str && it.str.trim());
+
+    if (digital.length >= 5) {
+      digital.forEach(it => {
+        allItems.push({ text: it.str.trim(), x: Math.round(it.transform[4]), y: Math.round(vp.height - it.transform[5]), pg });
       });
-    });
+    } else {
+      // Scanned — load Tesseract on-demand and OCR the rendered page
+      isScanned = true;
+      if (!window.Tesseract) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+      const SCALE = 2;
+      const vpS = page.getViewport({ scale: SCALE });
+      const cv = document.createElement('canvas');
+      cv.width = vpS.width; cv.height = vpS.height;
+      await page.render({ canvasContext: cv.getContext('2d'), viewport: vpS }).promise;
+      const { data } = await Tesseract.recognize(cv, 'eng', { logger: () => {} });
+      data.words.forEach(w => {
+        if (w.text && w.text.trim()) {
+          allItems.push({ text: w.text.trim(), x: Math.round(w.bbox.x0 / SCALE), y: Math.round(w.bbox.y0 / SCALE), pg });
+        }
+      });
+    }
   }
 
   const fullText = allItems.map(it => it.text).join(' ');
@@ -3796,7 +3819,7 @@ async function parseNDECWPdf(file) {
   // ── Extract patient info from ECW header line ──
   // Pattern: KIM, Kwang "Valley Silvertown Assisted Living" DOB: 05/25/1945 (81 yo M) Acc No. 11604
   let patientName = '', facility = '', dob = '', ageSex = '';
-  const hm = fullText.match(/([A-Z]{2,}[A-Z,\s]+?)\s+"([^"]+)"\s+DOB:\s*([\d\/]+)\s+\((\d+\s+yo\s+[MF])\)/i);
+  const hm = fullText.match(/([A-Z]{2,}[A-Z,\s]+?)\s+["""'']([^"""'']+)["""']\s+DOB:\s*([\d\/]+)\s+\((\d+\s+yo\s+[MF])\)/i);
   if (hm) {
     // Normalize "KIM, Kwang" → title case "Kim, Kwang"
     patientName = hm[1].trim().split(',').map((p,i) => {
@@ -3822,11 +3845,12 @@ async function parseNDECWPdf(file) {
   const SKIP = /summary of today|dazzle health|eclinicalworks|confidential|destroy|intended recipient|please review|medication name|medication details|medication updates|^\d+\/\d+$/i;
   const STATUS_TAG = /^(start|started|stop|stopped|changed|refilled|refill|restarted)$/i;
 
-  // Helper: group items by y-line (±6px), sort by y, then split into left/right columns
+  // Helper: group items by y-line, sort by y, then split into left/right columns
   function groupLines(items, colSplit) {
+    const yTol = isScanned ? 10 : 6;
     const lines = [];
     items.forEach(it => {
-      const found = lines.find(l => Math.abs(l.y - it.y) <= 6);
+      const found = lines.find(l => Math.abs(l.y - it.y) <= yTol);
       if (found) found.items.push(it);
       else lines.push({ y: it.y, items: [it] });
     });
@@ -3863,61 +3887,81 @@ async function parseNDECWPdf(file) {
     return meds;
   }
 
-  // ── Diagnostic alert (temporary) ──
-  alert('PDF extracted ' + allItems.length + ' text items.\n\nFirst 30:\n' + allItems.slice(0,30).map(it=>it.text).join('\n'));
+  // ── Build line map (needed for OCR where each word is a separate item) ──
+  // lineMap[i] = { y, pg, text: full line text, firstIdx, lastIdx }
+  const lineMap = [];
+  allItems.forEach((it, idx) => {
+    const found = lineMap.find(l => l.pg === it.pg && Math.abs(l.y - it.y) <= (isScanned ? 10 : 6));
+    if (found) { found.text += ' ' + it.text; found.lastIdx = idx; }
+    else lineMap.push({ y: it.y, pg: it.pg, text: it.text, firstIdx: idx, lastIdx: idx });
+  });
+  lineMap.sort((a, b) => a.pg !== b.pg ? a.pg - b.pg : a.y - b.y);
+
+  // Search allItems first (works for digital PDFs with multi-word text spans),
+  // then fall back to line-level search (needed for OCR individual words).
+  function findIdx(pattern, afterIdx = -1) {
+    const direct = allItems.findIndex((it, i) => i > afterIdx && pattern.test(it.text));
+    if (direct >= 0) return direct;
+    const line = lineMap.find(l => l.firstIdx > afterIdx && pattern.test(l.text));
+    return line ? line.firstIdx : -1;
+  }
+  function findIdxLast(pattern) {
+    let found = -1;
+    allItems.forEach((it, i) => { if (pattern.test(it.text)) found = i; });
+    if (found >= 0) return found;
+    let foundLine = null;
+    lineMap.forEach(l => { if (pattern.test(l.text)) foundLine = l; });
+    return foundLine ? foundLine.firstIdx : -1;
+  }
+  // x-position of a pattern (used for column split detection)
+  function findX(pattern, afterIdx = -1, beforeIdx = Infinity) {
+    const it = allItems.find((it, i) => i > afterIdx && i < beforeIdx && pattern.test(it.text));
+    if (it) return it.x;
+    // OCR: look for item in the line that contains the pattern
+    const line = lineMap.find(l => l.firstIdx > afterIdx && l.firstIdx < beforeIdx && pattern.test(l.text));
+    if (!line) return null;
+    // Return x of the matching word within that line
+    const word = allItems.slice(line.firstIdx, line.lastIdx + 1).find(w => pattern.test(w.text));
+    return word ? word.x : null;
+  }
 
   // ── Find section boundaries ──
-  const chgIdx = allItems.findIndex(it => /medication changes/i.test(it.text));
+  const chgIdx = findIdx(/medication changes/i);
 
-  // "Current Medications" header — try several patterns, then fall back to the
-  // "Medication Name" column header (ECW sometimes renders section headings as graphics)
   const _findCur = () => {
-    const patterns = [
-      /^current medications$/i,
-      /^current medication list$/i,
-      /current medications/i,
-      /current medication/i,
-    ];
-    for (const re of patterns) {
-      const idx = allItems.findIndex(it => re.test(it.text));
+    for (const re of [/^current medications$/i, /current medications/i, /current medication list/i, /current medication/i]) {
+      const idx = findIdx(re);
       if (idx >= 0) return idx;
     }
-    // Fall back: find the LAST "Medication Name" column header (the current-meds table)
-    // Skip over any "Medication Name" inside the Changes section
-    let fallback = -1;
-    allItems.forEach((it, i) => {
-      if (/^medication name$/i.test(it.text)) fallback = i;
-    });
-    return fallback; // -1 if truly nothing found
+    // Last "Medication Name" column header (the current-meds table header)
+    return findIdxLast(/^medication name$/i) >= 0
+      ? findIdxLast(/^medication name$/i)
+      : findIdxLast(/medication name/i);
   };
   const curIdx = _findCur();
   if (curIdx < 0) {
-    const sample = allItems.slice(0,40).map(it=>it.text).join(' | ');
     throw new Error(
       `Could not find medication table. Extracted ${allItems.length} text item(s).` +
       (allItems.length === 0
         ? ' PDF appears to be image-based (scanned) — text extraction returned nothing.'
-        : ' First items: ' + sample)
+        : ' First items: ' + allItems.slice(0,20).map(it=>it.text).join(' | '))
     );
   }
 
   // ── Parse "Medication Changes & Refills" section ──
   let medChanges = [];
   if (chgIdx >= 0 && curIdx > chgIdx) {
-    const chgMnIdx = allItems.findIndex((it,i) => i > chgIdx && i < curIdx && /^medication name$/i.test(it.text));
-    const chgMdItem = allItems.find((it,i) => i > chgIdx && i < curIdx && /^medication details$/i.test(it.text));
-    const chgSplit = chgMdItem ? chgMdItem.x : 350;
-    const sliceStart = chgMnIdx >= 0 ? chgMnIdx + 1 : chgIdx + 1;
+    const chgMnIdx = findIdx(/^medication name$/i, chgIdx);
+    const chgSplitX = findX(/^medication details$/i, chgIdx, curIdx) || findX(/details/i, chgIdx, curIdx) || 350;
+    const sliceStart = (chgMnIdx >= 0 && chgMnIdx < curIdx) ? chgMnIdx + 1 : chgIdx + 1;
     const chgItems = allItems.slice(sliceStart, curIdx).filter(it => !SKIP.test(it.text));
-    medChanges = buildMeds(groupLines(chgItems, chgSplit), true).filter(m => m.medName);
+    medChanges = buildMeds(groupLines(chgItems, chgSplitX), true).filter(m => m.medName);
   }
 
   // ── Parse "Current Medications" section ──
-  // curIdx points at either the section header or the "Medication Name" column header.
-  // In either case, look for the column header at or after curIdx.
-  const mnIdx = allItems.findIndex((it,i) => i >= curIdx && /^medication name$/i.test(it.text));
-  const mdItem = allItems.find((it,i) => i >= curIdx && /^medication details$/i.test(it.text));
-  const colSplit = mdItem ? mdItem.x : 350;
+  const mnIdx = findIdx(/^medication name$/i, curIdx - 1);
+  const colSplitX = findX(/^medication details$/i, curIdx - 1) || findX(/details/i, curIdx - 1) || 350;
+  const colSplit = colSplitX;
   const tableItems = allItems.slice(mnIdx >= 0 ? mnIdx + 1 : curIdx + 1).filter(it => !SKIP.test(it.text));
   const medications = buildMeds(groupLines(tableItems, colSplit), false);
 
