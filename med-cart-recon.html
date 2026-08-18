@@ -417,13 +417,16 @@
       Meds are <strong>not</strong> dispensed from AllRx — upload the care partner's medication list independently.
     </div>
 
-    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Step 1 — Add Patient PDFs</div>
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Step 1 — Add Patient Files</div>
     <div class="slot-a" style="margin-bottom:10px">
-      <div class="slot-helper" style="margin-bottom:6px">eClinicalWorks "Patient Visit Summary" PDFs — add one or many. Each pick <em>adds</em> to the list. All patients go into one form.</div>
+      <div class="slot-helper" style="margin-bottom:6px">
+        <strong style="color:#1a5276">Preferred: ECW Excel export</strong> — columns: <code>Patient Name · Medication Name · Medication Details</code>. One file can hold many patients.<br>
+        <span style="color:var(--muted)">Also accepts: PDF (scanned or digital) · CSV · .xls</span>
+      </div>
       <div class="drop-zone" id="nd-drop-zone" style="border-color:#1a5276;padding:10px 14px">
         <input type="file" id="nd-file-input" accept=".pdf,.xlsx,.xls,.csv" multiple style="display:none">
-        <button class="btn dz-btn" style="background:#1a5276" onclick="document.getElementById('nd-file-input').click()">+ Add PDF(s)…</button>
-        <div class="dz-hint">Drag &amp; drop here · each pick adds to the queue below</div>
+        <button class="btn dz-btn" style="background:#1a5276" onclick="document.getElementById('nd-file-input').click()">+ Add File(s)…</button>
+        <div class="dz-hint">Drag &amp; drop Excel / PDF / CSV · each pick adds to the queue below</div>
       </div>
       <div id="nd-upload-status" style="margin-top:6px"></div>
       <div id="nd-patient-list" style="margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
