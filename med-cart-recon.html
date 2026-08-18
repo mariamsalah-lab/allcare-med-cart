@@ -3894,7 +3894,12 @@ async function parseNDECWPdf(file) {
   const curIdx = _findCur();
   if (curIdx < 0) {
     const sample = allItems.slice(0,40).map(it=>it.text).join(' | ');
-    throw new Error('Could not find medication table in PDF. First text items: ' + sample);
+    throw new Error(
+      `Could not find medication table. Extracted ${allItems.length} text item(s).` +
+      (allItems.length === 0
+        ? ' PDF appears to be image-based (scanned) — text extraction returned nothing.'
+        : ' First items: ' + sample)
+    );
   }
 
   // ── Parse "Medication Changes & Refills" section ──
