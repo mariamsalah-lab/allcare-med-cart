@@ -3935,14 +3935,21 @@ async function parseNDECWPdf(file) {
   const chgIdx = findIdx(/medication changes/i);
 
   const _findCur = () => {
-    for (const re of [/^current medications$/i, /current medications/i, /current medication list/i, /current medication/i]) {
+    // Ordered most-specific → least-specific to avoid matching disclaimer sentences
+    for (const re of [
+      /^current medications$/i,
+      /current medications\b/i,
+      /^medications as of\b/i,   // ECW scanned: section header "Medications as of MM/DD/YYYY"
+      /medications as of\b/i,
+      /^current medication list$/i,
+      /current medication$/i,    // must END with these words (not mid-sentence)
+      /current medication/i,     // last resort — may match disclaimer
+    ]) {
       const idx = findIdx(re);
       if (idx >= 0) return idx;
     }
-    // Last "Medication Name" column header (the current-meds table header)
-    return findIdxLast(/^medication name$/i) >= 0
-      ? findIdxLast(/^medication name$/i)
-      : findIdxLast(/medication name/i);
+    // Fall back to last "Medication Name" column header
+    return findIdxLast(/medication name/i);
   };
   const curIdx = _findCur();
   if (curIdx < 0) {
@@ -3968,10 +3975,22 @@ async function parseNDECWPdf(file) {
   const mnIdx = findIdx(/^medication name$/i, curIdx - 1);
   const colSplitX = findX(/^medication details$/i, curIdx - 1) || findX(/details/i, curIdx - 1) || 350;
   const colSplit = colSplitX;
-  const tableItems = allItems.slice(mnIdx >= 0 ? mnIdx + 1 : curIdx + 1).filter(it => !SKIP.test(it.text));
-  // Diagnostic: show colSplit and first 20 tableItems
-  alert('colSplit=' + colSplit + '\ncurIdx=' + curIdx + ' mnIdx=' + mnIdx + '\nFirst 20 tableItems:\n' +
-    tableItems.slice(0,20).map(it => 'x='+it.x+' y='+it.y+' pg='+it.pg+' "'+it.text+'"').join('\n'));
+  const rawTableItems = allItems.slice(mnIdx >= 0 ? mnIdx + 1 : curIdx + 1).filter(it => !SKIP.test(it.text));
+
+  // Line-level pre-filter: build preliminary lines and drop entire lines that are
+  // ECW boilerplate (disclaimer sentences, date headers, page footers).
+  // This prevents "Please complete medication list with your provider..." from
+  // being parsed as a medication row in scanned PDFs.
+  const NON_MED_LINE = /please (complete|review|share|bring|return)|with your provider|to ensure|is accurate|medications as of\b|as of \d{2}\/\d{2}|review this list|medication list with|^(today|date|time|page \d|^\d+ of \d+)$/i;
+  const preLines = [];
+  rawTableItems.forEach(it => {
+    const absY = (it.pg - 1) * 10000 + it.y;
+    const found = preLines.find(l => Math.abs(l.absY - absY) <= (isScanned ? 10 : 6));
+    if (found) { found.text += ' ' + it.text; found.items.push(it); }
+    else preLines.push({ absY, text: it.text, items: [it] });
+  });
+  const tableItems = preLines.filter(l => !NON_MED_LINE.test(l.text)).flatMap(l => l.items);
+
   const medications = buildMeds(groupLines(tableItems, colSplit), false);
 
   if (!patientName) throw new Error('Could not determine patient name from PDF');
