@@ -3863,10 +3863,16 @@ async function parseNDECWPdf(file) {
     return meds;
   }
 
+  // ── Log extracted text for debugging ──
+  console.log('[ND Parser] allItems count:', allItems.length);
+  console.log('[ND Parser] first 60 items:', allItems.slice(0,60).map(it=>JSON.stringify({t:it.text,x:it.x,y:it.y})));
+
   // ── Find section boundaries ──
   const chgIdx = allItems.findIndex(it => /medication changes/i.test(it.text));
+
+  // "Current Medications" header — try several patterns, then fall back to the
+  // "Medication Name" column header (ECW sometimes renders section headings as graphics)
   const _findCur = () => {
-    // Try progressively looser matches
     const patterns = [
       /^current medications$/i,
       /^current medication list$/i,
@@ -3877,10 +3883,19 @@ async function parseNDECWPdf(file) {
       const idx = allItems.findIndex(it => re.test(it.text));
       if (idx >= 0) return idx;
     }
-    return -1;
+    // Fall back: find the LAST "Medication Name" column header (the current-meds table)
+    // Skip over any "Medication Name" inside the Changes section
+    let fallback = -1;
+    allItems.forEach((it, i) => {
+      if (/^medication name$/i.test(it.text)) fallback = i;
+    });
+    return fallback; // -1 if truly nothing found
   };
   const curIdx = _findCur();
-  if (curIdx < 0) throw new Error('No "Current Medications" section found in PDF');
+  if (curIdx < 0) {
+    const sample = allItems.slice(0,40).map(it=>it.text).join(' | ');
+    throw new Error('Could not find medication table in PDF. First text items: ' + sample);
+  }
 
   // ── Parse "Medication Changes & Refills" section ──
   let medChanges = [];
@@ -3894,6 +3909,8 @@ async function parseNDECWPdf(file) {
   }
 
   // ── Parse "Current Medications" section ──
+  // curIdx points at either the section header or the "Medication Name" column header.
+  // In either case, look for the column header at or after curIdx.
   const mnIdx = allItems.findIndex((it,i) => i >= curIdx && /^medication name$/i.test(it.text));
   const mdItem = allItems.find((it,i) => i >= curIdx && /^medication details$/i.test(it.text));
   const colSplit = mdItem ? mdItem.x : 350;
