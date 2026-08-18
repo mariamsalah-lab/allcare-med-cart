@@ -3778,6 +3778,7 @@ async function parseNDECWPdf(file) {
   // ── Extract text (digital) or OCR (scanned) ──
   let allItems = [];   // {text, x, y, pg}
   let isScanned = false;
+  let ocrColSplit = null; // set by split-column OCR; overrides findX-based detection
 
   for (let pg = 1; pg <= pdf.numPages; pg++) {
     const page = await pdf.getPage(pg);
@@ -3790,7 +3791,8 @@ async function parseNDECWPdf(file) {
         allItems.push({ text: it.str.trim(), x: Math.round(it.transform[4]), y: Math.round(vp.height - it.transform[5]), pg });
       });
     } else {
-      // Scanned — load Tesseract on-demand and OCR the rendered page
+      // Scanned — split the page into left/right halves then OCR each separately.
+      // This avoids having to guess the column boundary from OCR coordinates.
       isScanned = true;
       if (!window.Tesseract) {
         await new Promise((res, rej) => {
@@ -3800,16 +3802,39 @@ async function parseNDECWPdf(file) {
           document.head.appendChild(s);
         });
       }
-      const SCALE = 2;
+      const SCALE = 3; // higher res = better accuracy
       const vpS = page.getViewport({ scale: SCALE });
-      const cv = document.createElement('canvas');
-      cv.width = vpS.width; cv.height = vpS.height;
-      await page.render({ canvasContext: cv.getContext('2d'), viewport: vpS }).promise;
-      const { data } = await Tesseract.recognize(cv, 'eng', { logger: () => {} });
-      data.words.forEach(w => {
-        if (w.text && w.text.trim()) {
+      const full = document.createElement('canvas');
+      full.width = vpS.width; full.height = vpS.height;
+      await page.render({ canvasContext: full.getContext('2d'), viewport: vpS }).promise;
+
+      // ECW medication table splits at ~42% of page width
+      const splitPx = Math.round(full.width * 0.42);
+      ocrColSplit = Math.round(splitPx / SCALE); // in page-unit coords
+
+      const mkSlice = (srcX, w) => {
+        const c = document.createElement('canvas');
+        c.width = w; c.height = full.height;
+        c.getContext('2d').drawImage(full, srcX, 0, w, full.height, 0, 0, w, full.height);
+        return c;
+      };
+      const leftCanvas  = mkSlice(0, splitPx);
+      const rightCanvas = mkSlice(splitPx, full.width - splitPx);
+
+      const [lData, rData] = await Promise.all([
+        Tesseract.recognize(leftCanvas,  'eng', { logger: () => {} }).then(r => r.data),
+        Tesseract.recognize(rightCanvas, 'eng', { logger: () => {} }).then(r => r.data),
+      ]);
+
+      // Left-column words — x stays as-is (normalized by SCALE)
+      lData.words.forEach(w => {
+        if (w.text && w.text.trim())
           allItems.push({ text: w.text.trim(), x: Math.round(w.bbox.x0 / SCALE), y: Math.round(w.bbox.y0 / SCALE), pg });
-        }
+      });
+      // Right-column words — x offset by splitPx before normalizing
+      rData.words.forEach(w => {
+        if (w.text && w.text.trim())
+          allItems.push({ text: w.text.trim(), x: Math.round((w.bbox.x0 + splitPx) / SCALE), y: Math.round(w.bbox.y0 / SCALE), pg });
       });
     }
   }
@@ -3965,7 +3990,7 @@ async function parseNDECWPdf(file) {
   let medChanges = [];
   if (chgIdx >= 0 && curIdx > chgIdx) {
     const chgMnIdx = findIdx(/^medication name$/i, chgIdx);
-    const chgSplitX = findX(/^medication details$/i, chgIdx, curIdx) || findX(/details/i, chgIdx, curIdx) || 350;
+    const chgSplitX = ocrColSplit || findX(/^medication details$/i, chgIdx, curIdx) || findX(/details/i, chgIdx, curIdx) || 350;
     const sliceStart = (chgMnIdx >= 0 && chgMnIdx < curIdx) ? chgMnIdx + 1 : chgIdx + 1;
     const chgItems = allItems.slice(sliceStart, curIdx).filter(it => !SKIP.test(it.text));
     medChanges = buildMeds(groupLines(chgItems, chgSplitX), true).filter(m => m.medName);
@@ -3973,7 +3998,7 @@ async function parseNDECWPdf(file) {
 
   // ── Parse "Current Medications" section ──
   const mnIdx = findIdx(/^medication name$/i, curIdx - 1);
-  const colSplitX = findX(/^medication details$/i, curIdx - 1) || findX(/details/i, curIdx - 1) || 350;
+  const colSplitX = ocrColSplit || findX(/^medication details$/i, curIdx - 1) || findX(/details/i, curIdx - 1) || 350;
   const colSplit = colSplitX;
   const rawTableItems = allItems.slice(mnIdx >= 0 ? mnIdx + 1 : curIdx + 1).filter(it => !SKIP.test(it.text));
 
