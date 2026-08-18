@@ -408,6 +408,33 @@
   </div>
 
   <div id="error-area"></div>
+
+  <!-- ═══ Non-Dispensing Recon Form ═══ -->
+  <div class="card" id="nd-card">
+    <div class="card-title"><span class="step-num" style="background:#1a5276">ND</span> Non-Dispensing Med Cart Recon</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px">
+      For facilities where Dazzle Health <em>providers</em> prescribe and <em>care partners</em> perform reconciliation.
+      Meds are <strong>not</strong> dispensed from AllRx — upload the care partner's medication list independently.
+    </div>
+
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Step 1 — Add Patient PDFs</div>
+    <div class="slot-a" style="margin-bottom:10px">
+      <div class="slot-helper" style="margin-bottom:6px">eClinicalWorks "Patient Visit Summary" PDFs — add one or many. Each pick <em>adds</em> to the list. All patients go into one form.</div>
+      <div class="drop-zone" id="nd-drop-zone" style="border-color:#1a5276;padding:10px 14px">
+        <input type="file" id="nd-file-input" accept=".pdf,.xlsx,.xls,.csv" multiple style="display:none">
+        <button class="btn dz-btn" style="background:#1a5276" onclick="document.getElementById('nd-file-input').click()">+ Add PDF(s)…</button>
+        <div class="dz-hint">Drag &amp; drop here · each pick adds to the queue below</div>
+      </div>
+      <div id="nd-upload-status" style="margin-top:6px"></div>
+      <div id="nd-patient-list" style="margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Step 2 — Generate One Combined Form</div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="gen-nd-btn" onclick="generateNonDispensingForm()" style="background:#1a5276;border-color:#1a5276;font-size:13px">📋 Non-Dispensing Recon PDF</button>
+      <button class="btn btn-outline" onclick="clearNDPatients()" style="font-size:12px">✕ Clear all</button>
+    </div>
+  </div>
 </main>
 
 <footer>AllCare MSC Program · Dazzle Health PC · AllRx · For internal use only</footer>
@@ -418,6 +445,7 @@ let parsedData = null;      // alias for parsedDataA (backward compat)
 let parsedDataA = null;     // current cycle
 let parsedDataB = null;     // previous cycle (optional)
 let parsedDataC = null;     // exceptions manifest (optional slot C)
+let parsedDataND = null;    // non-dispensing recon (separate upload)
 let excAllPtKeys = new Set(); // patients where ALL meds are exceptions
 let excNotesMap  = new Map(); // ptKey|medKey → exception note text
 let detectedFormat = null;
@@ -3637,6 +3665,7 @@ const ALL_BTNS = [
   ['gen-pdf-btn','📄 Recon PDF'],['gen-medlist-btn','📋 Med List PDF'],
   ['gen-comp-btn','📊 Changes Report (.xlsx)'],['gen-comp-pdf-btn','📄 Changes PDF'],
   ['gen-consolidated-btn','📋 Consolidated Visit Form'],
+  ['gen-nd-btn','📋 Non-Dispensing Recon PDF'],
 ];
 function resetBtns() { ALL_BTNS.forEach(([id,lbl])=>{const b=document.getElementById(id);if(b){b.disabled=false;b.textContent=lbl;}}); }
 
@@ -3662,9 +3691,506 @@ function showResult(excelName, pdfName, patCount, rxCount, docType) {
   resetBtns();
 }
 
+// ════════════════════════════════════════════════════════════════
+// Non-Dispensing Recon Form — file handling + PDF generation
+// ════════════════════════════════════════════════════════════════
+(function() {
+  const dz = document.getElementById('nd-drop-zone');
+  const inp = document.getElementById('nd-file-input');
+  if (!dz || !inp) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag');
+    if (e.dataTransfer.files.length) handleFilesND(e.dataTransfer.files);
+  });
+  inp.addEventListener('change', e => { if (e.target.files.length) handleFilesND(e.target.files); });
+  dz.addEventListener('click', e => { if (e.target.tagName !== 'BUTTON') inp.click(); });
+})();
+
+// Entry point — accepts FileList, ADDS to existing parsedDataND (additive)
+async function handleFilesND(fileList) {
+  const statusEl = document.getElementById('nd-upload-status');
+  const files = Array.from(fileList);
+  statusEl.innerHTML = `<span style="color:var(--muted)">Reading ${files.length} file${files.length>1?'s':''}…</span>`;
+
+  if (!parsedDataND) parsedDataND = [];
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    try {
+      let patients;
+      if (ext === 'pdf') {
+        patients = await parseNDECWPdf(file);
+      } else {
+        patients = await parseNDSheet(file, ext);
+      }
+      if (patients && patients.length) parsedDataND = parsedDataND.concat(patients);
+    } catch(err) {
+      statusEl.innerHTML = `<div style="color:var(--danger)">Error in ${file.name}: ${err.message}</div>`;
+      renderNDPatientList();
+      return;
+    }
+  }
+
+  statusEl.innerHTML = '';
+  document.getElementById('nd-file-input').value = '';
+  renderNDPatientList();
+  clearError();
+}
+
+function renderNDPatientList() {
+  const listEl = document.getElementById('nd-patient-list');
+  if (!parsedDataND || !parsedDataND.length) {
+    listEl.innerHTML = '';
+    return;
+  }
+  listEl.innerHTML = parsedDataND.map((pt, i) => {
+    const meds = pt.medications.length;
+    const chg  = pt.medChanges && pt.medChanges.length ? ` · ${pt.medChanges.length} change${pt.medChanges.length!==1?'s':''}` : '';
+    return `<div style="display:flex;align-items:center;gap:8px;background:#eaf4ff;border:1px solid #b8d8f0;border-radius:6px;padding:5px 10px;font-size:12px">
+      <span style="font-weight:600;color:#1a5276;flex:1">${pt.name}</span>
+      <span style="color:#5a7a96;font-size:11px">${meds} med${meds!==1?'s':''}${chg}</span>
+      <button onclick="removePatientND(${i})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#8aa;padding:0 2px;line-height:1" title="Remove">✕</button>
+    </div>`;
+  }).join('');
+  const total = parsedDataND.reduce((s,p)=>s+p.medications.length,0);
+  listEl.innerHTML += `<div style="font-size:11px;color:var(--muted);margin-top:2px;text-align:right">${parsedDataND.length} patient${parsedDataND.length!==1?'s':''} · ${total} meds total → <strong>1 PDF</strong></div>`;
+}
+
+function removePatientND(idx) {
+  parsedDataND.splice(idx, 1);
+  renderNDPatientList();
+}
+
+function clearNDPatients() {
+  parsedDataND = [];
+  document.getElementById('nd-file-input').value = '';
+  document.getElementById('nd-upload-status').innerHTML = '';
+  renderNDPatientList();
+}
+
+// ── eClinicalWorks "Patient Visit Summary" PDF parser ──────────
+async function parseNDECWPdf(file) {
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+
+  // Extract all text items with coordinates
+  let allItems = [];
+  for (let pg = 1; pg <= pdf.numPages; pg++) {
+    const page = await pdf.getPage(pg);
+    const content = await page.getTextContent();
+    const vp = page.getViewport({ scale: 1 });
+    content.items.filter(it => it.str.trim()).forEach(it => {
+      allItems.push({
+        text: it.str.trim(),
+        x: Math.round(it.transform[4]),
+        y: Math.round(vp.height - it.transform[5]),
+        pg
+      });
+    });
+  }
+
+  const fullText = allItems.map(it => it.text).join(' ');
+
+  // ── Extract patient info from ECW header line ──
+  // Pattern: KIM, Kwang "Valley Silvertown Assisted Living" DOB: 05/25/1945 (81 yo M) Acc No. 11604
+  let patientName = '', facility = '', dob = '', ageSex = '';
+  const hm = fullText.match(/([A-Z]{2,}[A-Z,\s]+?)\s+"([^"]+)"\s+DOB:\s*([\d\/]+)\s+\((\d+\s+yo\s+[MF])\)/i);
+  if (hm) {
+    // Normalize "KIM, Kwang" → title case "Kim, Kwang"
+    patientName = hm[1].trim().split(',').map((p,i) => {
+      const t = p.trim();
+      return i === 0 ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : t;
+    }).join(', ');
+    facility = hm[2].trim();
+    dob = hm[3];
+    const am = hm[4].match(/(\d+)\s+yo\s+([MF])/i);
+    ageSex = am ? am[1]+' | '+am[2].toUpperCase() : hm[4];
+  } else {
+    // Fallback: page 1 style "Kim , Kwang\nDOB: MM/DD/YYYY\nSex: Male"
+    const nm = fullText.match(/([A-Z][a-z]+\s*,\s*[A-Z][a-z]+)/);
+    if (nm) patientName = nm[1].replace(/\s+/g,' ').trim();
+    const dm = fullText.match(/DOB:\s*([\d\/]+)/);
+    if (dm) dob = dm[1];
+    const sm = fullText.match(/Sex:\s*(\w+)/i);
+    if (sm) ageSex = sm[1][0].toUpperCase();
+    const fm = fullText.match(/"([^"]+)"/);
+    if (fm) facility = fm[1].trim();
+  }
+
+  const SKIP = /summary of today|dazzle health|eclinicalworks|confidential|destroy|intended recipient|please review|medication name|medication details|medication updates|^\d+\/\d+$/i;
+  const STATUS_TAG = /^(start|started|stop|stopped|changed|refilled|refill|restarted)$/i;
+
+  // Helper: group items by y-line (±6px), sort by y, then split into left/right columns
+  function groupLines(items, colSplit) {
+    const lines = [];
+    items.forEach(it => {
+      const found = lines.find(l => Math.abs(l.y - it.y) <= 6);
+      if (found) found.items.push(it);
+      else lines.push({ y: it.y, items: [it] });
+    });
+    lines.sort((a,b) => a.y - b.y);
+    return lines.map(l => ({
+      y: l.y,
+      left:   l.items.filter(it => it.x < colSplit && !STATUS_TAG.test(it.text)).map(it => it.text).join(' ').trim(),
+      right:  l.items.filter(it => it.x >= colSplit).map(it => it.text).join(' ').trim(),
+      status: (l.items.find(it => STATUS_TAG.test(it.text)) || {}).text || '',
+    }));
+  }
+
+  // Helper: build medication list from grouped lines
+  function buildMeds(lines, hasStatus) {
+    const meds = [];
+    let cur = null, lastLeftY = -999;
+    lines.forEach(({ y, left, right, status }) => {
+      if (!left && !right && !status) return;
+      if (left || (hasStatus && status)) {
+        const isCont = cur && (y - lastLeftY) < 22 && !status;
+        if (isCont) {
+          cur.medName += ' ' + left;
+          if (right) cur.directions += ' ' + right;
+        } else {
+          if (cur) meds.push(cur);
+          cur = { medName: left, directions: right, status: status ? status.charAt(0).toUpperCase()+status.slice(1).toLowerCase() : '' };
+        }
+        if (left) lastLeftY = y;
+      } else if (right && cur) {
+        cur.directions += ' ' + right;
+      }
+    });
+    if (cur) meds.push(cur);
+    return meds;
+  }
+
+  // ── Find section boundaries ──
+  const chgIdx = allItems.findIndex(it => /medication changes/i.test(it.text));
+  const curIdx = allItems.findIndex(it => /^current medications$/i.test(it.text))
+              || allItems.findIndex(it => /current medications/i.test(it.text));
+  if (curIdx < 0) throw new Error('No "Current Medications" section found in PDF');
+
+  // ── Parse "Medication Changes & Refills" section ──
+  let medChanges = [];
+  if (chgIdx >= 0 && curIdx > chgIdx) {
+    const chgMnIdx = allItems.findIndex((it,i) => i > chgIdx && i < curIdx && /^medication name$/i.test(it.text));
+    const chgMdItem = allItems.find((it,i) => i > chgIdx && i < curIdx && /^medication details$/i.test(it.text));
+    const chgSplit = chgMdItem ? chgMdItem.x : 350;
+    const sliceStart = chgMnIdx >= 0 ? chgMnIdx + 1 : chgIdx + 1;
+    const chgItems = allItems.slice(sliceStart, curIdx).filter(it => !SKIP.test(it.text));
+    medChanges = buildMeds(groupLines(chgItems, chgSplit), true).filter(m => m.medName);
+  }
+
+  // ── Parse "Current Medications" section ──
+  const mnIdx = allItems.findIndex((it,i) => i >= curIdx && /^medication name$/i.test(it.text));
+  const mdItem = allItems.find((it,i) => i >= curIdx && /^medication details$/i.test(it.text));
+  const colSplit = mdItem ? mdItem.x : 350;
+  const tableItems = allItems.slice(mnIdx >= 0 ? mnIdx + 1 : curIdx + 1).filter(it => !SKIP.test(it.text));
+  const medications = buildMeds(groupLines(tableItems, colSplit), false);
+
+  if (!patientName) throw new Error('Could not determine patient name from PDF');
+  return [{ name: patientName, dob, ageSex, facility, medications, medChanges }];
+}
+
+// ── xlsx / csv parser ──────────────────────────────────────────
+function parseNDSheet(file, ext) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const done = wb => {
+      try {
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+        if (!rows.length) throw new Error('Empty file');
+        let headerIdx = 0;
+        for (let i = 0; i < Math.min(10, rows.length); i++) {
+          if (rows[i].some(c => /patient|name|medication|drug|med\b|rx/i.test(String(c)))) { headerIdx = i; break; }
+        }
+        const headers = rows[headerIdx].map(h => String(h||'').toLowerCase().trim());
+        const col = (...terms) => { for (const t of terms) { const idx = headers.findIndex(h => h.includes(t)); if (idx >= 0) return idx; } return -1; };
+        const C = {
+          patient:    col('patient full name','patient full','patient name','patient','name'),
+          last:       col('patient last','last name','last'),
+          first:      col('patient first','first name','first'),
+          med:        col('dispensed item name','dispensed item','medication name','medication','drug name','med name','item name','med'),
+          rx:         col('rx number','rx#','rxnum','rx '),
+          prescriber: col('prescriber full name','prescriber','doctor','physician','provider'),
+          directions: col('directions translated','direction','sig','instruction'),
+          dob:        col('date of birth','dob','birth date'),
+          gender:     col('gender','sex'),
+          facility:   col('facility name','facility'),
+        };
+        const patientMap = new Map(), order = [];
+        for (let i = headerIdx + 1; i < rows.length; i++) {
+          const row = rows[i];
+          let patient = C.patient >= 0 ? String(row[C.patient]||'').trim() : '';
+          if (!patient && C.last >= 0 && C.first >= 0) {
+            const ln = String(row[C.last]||'').trim(), fn = String(row[C.first]||'').trim();
+            if (ln || fn) patient = ln + (fn ? ', '+fn : '');
+          }
+          if (!patient || patient.length < 2 || /^(patient|name|total)/i.test(patient)) continue;
+          const med        = C.med        >= 0 ? String(row[C.med]       ||'').trim() : '';
+          const rx         = C.rx         >= 0 ? String(row[C.rx]        ||'').trim() : '';
+          const prescriber = C.prescriber >= 0 ? String(row[C.prescriber]||'').trim() : '';
+          const directions = C.directions >= 0 ? String(row[C.directions]||'').trim() : '';
+          const dobRaw     = C.dob        >= 0 ? row[C.dob]                            : '';
+          const genderRaw  = C.gender     >= 0 ? String(row[C.gender]    ||'').trim()  : '';
+          const facilRaw   = C.facility   >= 0 ? String(row[C.facility]  ||'').trim()  : '';
+          const dobStr = xlDobStr(dobRaw);
+          const age    = xlDobAge(dobRaw);
+          const gL = genderRaw ? (genderRaw[0].toUpperCase()==='M' ? 'M' : genderRaw[0].toUpperCase()==='F' ? 'F' : genderRaw[0].toUpperCase()) : '';
+          const ageSex = (age && gL) ? age+' | '+gL : (age||gL ? (age||'')+(age&&gL?' | ':'')+gL : '');
+          if (!patientMap.has(patient)) {
+            order.push(patient);
+            patientMap.set(patient, { name:patient, dob:dobStr, ageSex, facility:facilRaw, medications:[] });
+          }
+          const pt = patientMap.get(patient);
+          if (!pt.dob && dobStr) pt.dob = dobStr;
+          if (!pt.ageSex && ageSex) pt.ageSex = ageSex;
+          if (!pt.facility && facilRaw) pt.facility = facilRaw;
+          if (med) pt.medications.push({ medName:med, rxNum:rx, prescriber, directions });
+        }
+        resolve(order.map(n => patientMap.get(n)));
+      } catch(e) { reject(e); }
+    };
+    if (ext === 'csv') {
+      reader.onload = e => done(XLSX.read(e.target.result, { type:'string' }));
+      reader.readAsText(file);
+    } else {
+      reader.onload = e => done(XLSX.read(new Uint8Array(e.target.result), { type:'array', cellDates:true }));
+      reader.readAsArrayBuffer(file);
+    }
+    reader.onerror = () => reject(new Error('Could not read file'));
+  });
+}
+
+function generateNonDispensingForm() {
+  if (!parsedDataND || !parsedDataND.length) {
+    showError('No data loaded for Non-Dispensing form. Please upload a medication list first.');
+    return;
+  }
+  const btn = document.getElementById('gen-nd-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  setTimeout(() => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const facility  = (parsedDataND.find(p => p.facility) || {}).facility
+                        || document.getElementById('facility-name').value
+                        || 'Facility';
+      const cdRaw     = document.getElementById('cycle-date').value;
+      const cycleDate = cdRaw
+        ? new Date(cdRaw+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+        : new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
+      const PW = doc.internal.pageSize.getWidth();
+      const PH = doc.internal.pageSize.getHeight();
+      const ML = 12, MR = 12, CW = PW - ML - MR;
+      const TPC = '{total_pages_count_string}';
+      const now = new Date();
+      const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+
+      const G  = [30,86,49];    // Dazzle green
+      const AC = [26,82,118];   // AllCare blue
+      const WH = [255,255,255];
+      const LG = [232,245,236];
+
+      let currentPatient = parsedDataND[0].name;
+
+      function drawHeaderND() {
+        const pg = doc.internal.getCurrentPageInfo().pageNumber;
+        // Green bar
+        doc.setFillColor(...G); doc.rect(0,0,PW,22,'F');
+        // Left: Dazzle Health PC + AllCare
+        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...WH);
+        doc.text('Dazzle Health PC', ML, 8);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(173,216,230);
+        doc.text('AllCare', ML, 14.5);
+        // Center: title + subtitle
+        doc.setFont('helvetica','bold'); doc.setFontSize(13.5); doc.setTextColor(...WH);
+        doc.text('Non-Dispensing Med Cart Reconciliation', PW/2, 8, {align:'center'});
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(200,235,210);
+        doc.text('Care Partner Medication Reconciliation Form', PW/2, 14, {align:'center'});
+        // Cycle pill
+        const pill = 'Cycle: '+cycleDate;
+        const pw2 = doc.getTextWidth(pill)+8;
+        doc.setFillColor(...WH); doc.roundedRect(PW/2-pw2/2,15.5,pw2,5.5,2,2,'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+        doc.text(pill, PW/2, 19.5, {align:'center'});
+        // Right: facility, patient, printed, page
+        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.text('Facility: '+facility, PW-MR, 6, {align:'right'});
+        if (currentPatient) {
+          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,235,150);
+          doc.text('Patient: '+currentPatient, PW-MR, 13, {align:'right'});
+        }
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...WH);
+        doc.text('Printed: '+printed, PW-MR, 18, {align:'right'});
+        doc.text('Page '+pg+' of '+TPC, PW-MR, 22, {align:'right'});
+        doc.setDrawColor(...G); doc.setLineWidth(0.8);
+        doc.line(ML, 22.5, PW-MR, 22.5);
+      }
+
+      drawHeaderND();
+      let y = 25;
+
+      // Column definitions: # | Medication | Rx# | Prescriber | Directions | Qty | Lbl | Exp | BOH | Notes | Verified
+      const HEAD_ND = ['#','Medication','Prescriber','Directions','Qty','Lbl','Exp','BOH','Notes','Verified'];
+      const COL_ND = {
+        0: {cellWidth:7,  halign:'center', fontStyle:'bold'},
+        1: {cellWidth:58, fontStyle:'bold'},
+        2: {cellWidth:28},
+        3: {cellWidth:54},
+        4: {cellWidth:9,  halign:'center'},
+        5: {cellWidth:9,  halign:'center'},
+        6: {cellWidth:13, halign:'center'},
+        7: {cellWidth:11, halign:'center'},
+        8: {cellWidth:'auto'},
+        9: {cellWidth:14, halign:'center'},
+      };
+
+      parsedDataND.forEach((pt, ptIdx) => {
+        currentPatient = pt.name;
+        if (ptIdx > 0) { doc.addPage(); drawHeaderND(); y = 25; }
+
+        // ── Patient card (dark green background) ──
+        const cardH = 22;
+        doc.setFillColor(...G); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+        doc.rect(ML, y, CW, cardH, 'FD');
+
+        // Left: patient name
+        doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...WH);
+        doc.text(pt.name, ML+5, y+8);
+        const infoStr = [pt.dob ? 'DOB: '+pt.dob : '', pt.ageSex || ''].filter(Boolean).join('    ');
+        if (infoStr) {
+          doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(200,235,210);
+          doc.text(infoStr, ML+5, y+15);
+        }
+
+        // Right: Start / End time + Care Partner fields
+        const rx = ML + CW*0.52;
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...WH);
+        doc.text('Start Time:', rx, y+8);
+        doc.setDrawColor(180,220,190); doc.setLineWidth(0.3);
+        doc.line(rx+23, y+8.5, rx+(CW*0.24), y+8.5);
+        doc.text('End Time:', rx + CW*0.26, y+8);
+        doc.line(rx + CW*0.26 + 21, y+8.5, ML+CW-3, y+8.5);
+        doc.text('Care Partner:', rx, y+17);
+        doc.line(rx+27, y+17.5, ML+CW-3, y+17.5);
+
+        y += cardH + 2;
+
+        // ── Medication table ──
+        const bodyRows = pt.medications.length
+          ? pt.medications.map((m,i) => [i+1, m.medName||'', m.prescriber||'', m.directions||'', '', '', '', '', '', ''])
+          : [['—','No medications listed','','','','','','','','']];
+
+        doc.autoTable({
+          head: [HEAD_ND],
+          body: bodyRows,
+          startY: y,
+          margin: {left:ML, right:MR},
+          styles: { fontSize:9, cellPadding:2.5, overflow:'linebreak', lineColor:[210,220,210], lineWidth:0.2 },
+          headStyles: { fillColor:AC, textColor:WH, fontStyle:'bold', fontSize:9, cellPadding:3 },
+          alternateRowStyles: { fillColor:[248,252,250] },
+          columnStyles: COL_ND,
+          didDrawPage: () => { drawHeaderND(); },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+
+        // ── Medication Changes & Refills (if any) ──
+        if (pt.medChanges && pt.medChanges.length) {
+          if (y + 20 > PH - 20) { doc.addPage(); drawHeaderND(); y = 25; }
+          // Section banner
+          doc.setFillColor(255,248,220); doc.setDrawColor(160,100,0); doc.setLineWidth(0.3);
+          doc.rect(ML, y, CW, 7, 'FD');
+          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(140,80,0);
+          doc.text('Medication Changes & Refills', ML+4, y+5);
+          y += 9;
+
+          const HEAD_CHG = ['#','Change','Medication','Directions','Notes'];
+          const COL_CHG = {
+            0:{cellWidth:7,  halign:'center', fontStyle:'bold'},
+            1:{cellWidth:22, halign:'center'},
+            2:{cellWidth:65, fontStyle:'bold'},
+            3:{cellWidth:'auto'},
+            4:{cellWidth:40},
+          };
+          const STATUS_COLORS = {
+            start:    { bg:[220,255,228], text:[20,100,40]  },
+            started:  { bg:[220,255,228], text:[20,100,40]  },
+            stop:     { bg:[255,225,225], text:[150,20,20]  },
+            stopped:  { bg:[255,225,225], text:[150,20,20]  },
+            changed:  { bg:[220,235,255], text:[20,60,150]  },
+            refilled: { bg:[255,248,215], text:[140,90,0]   },
+            refill:   { bg:[255,248,215], text:[140,90,0]   },
+            restarted:{ bg:[235,220,255], text:[80,20,150]  },
+          };
+          const chgBody = pt.medChanges.map((m,i) => [i+1, m.status||'—', m.medName||'', m.directions||'', '']);
+          doc.autoTable({
+            head: [HEAD_CHG],
+            body: chgBody,
+            startY: y,
+            margin: {left:ML, right:MR},
+            styles: { fontSize:9, cellPadding:2.5, overflow:'linebreak', lineColor:[220,195,130], lineWidth:0.2 },
+            headStyles: { fillColor:[160,100,0], textColor:WH, fontStyle:'bold', fontSize:9, cellPadding:3 },
+            alternateRowStyles: { fillColor:[255,252,240] },
+            columnStyles: COL_CHG,
+            didDrawPage: () => { drawHeaderND(); },
+            didParseCell: data => {
+              if (data.column.index === 1 && data.section === 'body') {
+                const key = String(data.cell.raw).toLowerCase();
+                const c = STATUS_COLORS[key];
+                if (c) { data.cell.styles.fillColor = c.bg; data.cell.styles.textColor = c.text; data.cell.styles.fontStyle = 'bold'; }
+              }
+            },
+          });
+          y = doc.lastAutoTable.finalY + 6;
+        }
+
+        // ── Provider / Pharmacist Notes ──
+        const notesH = 24;
+        if (y + notesH > PH - 20) { doc.addPage(); drawHeaderND(); y = 25; }
+        doc.setFillColor(245,248,245); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+        doc.rect(ML, y, CW, notesH, 'FD');
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...G);
+        doc.text('Provider / Pharmacist Notes:', ML+4, y+7);
+        doc.setDrawColor(170,200,175); doc.setLineWidth(0.25);
+        doc.line(ML+4, y+14, ML+CW-4, y+14);
+        doc.line(ML+4, y+21, ML+CW-4, y+21);
+        y += notesH + 4;
+
+        // ── Sign-off strip ──
+        const sfH = 13;
+        if (y + sfH > PH - 8) { doc.addPage(); drawHeaderND(); y = 25; }
+        doc.setFillColor(240,242,240); doc.setDrawColor(180,180,180); doc.setLineWidth(0.2);
+        doc.rect(ML, y, CW, sfH, 'FD');
+        const fw3 = CW / 3;
+        [['Provider Signature:', 0], ['Reconciled by:', 1], ['Nurse / Med Tech / Admin Signature:', 2]].forEach(([lbl,i]) => {
+          const fx = ML + i*fw3;
+          doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(70,70,70);
+          doc.text(lbl, fx+3, y+6);
+          doc.setDrawColor(150,150,150); doc.setLineWidth(0.3);
+          doc.line(fx+3, y+12, fx+fw3-3, y+12);
+        });
+        y += sfH + 6;
+      });
+
+      doc.putTotalPages(TPC);
+      const safe = facility.replace(/[^a-zA-Z0-9]/g,'_').replace(/_+/g,'_');
+      const fname = 'NonDispensingRecon_'+safe+'_'+cycleDate.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf';
+      doc.save(fname);
+      const rxCount = parsedDataND.reduce((s,p) => s + p.medications.length, 0);
+      showResult(null, fname, parsedDataND.length, rxCount, 'nd');
+    } catch(e) {
+      alert('Error: '+e.message); console.error(e);
+    } finally {
+      const btn2 = document.getElementById('gen-nd-btn');
+      if (btn2) { btn2.disabled=false; btn2.textContent='📋 Non-Dispensing Recon PDF'; }
+    }
+  }, 100);
+}
+
 function resetApp() {
   parsedData=null; detectedFormat=null;
-  parsedDataA=null; parsedDataB=null;
+  parsedDataA=null; parsedDataB=null; parsedDataND=null;
   facilityNameA=''; facilityNameB='';
   comparisonResult=null;
   ['step3-card','result-card'].forEach(id=>document.getElementById(id).style.display='none');
@@ -3675,6 +4201,9 @@ function resetApp() {
   document.getElementById('error-area').innerHTML='';
   document.getElementById('pdf-input-a').value='';
   document.getElementById('pdf-input-b').value='';
+  document.getElementById('nd-file-input').value='';
+  document.getElementById('nd-upload-status').innerHTML='';
+  renderNDPatientList();
   document.getElementById('facility-name').value='';
   document.getElementById('cycle-date').value='';
   document.getElementById('start-time').value='';
