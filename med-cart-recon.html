@@ -1954,7 +1954,7 @@ function generateComparisonPDF() {
       const PH = doc.internal.pageSize.getHeight();
       const ML = 8, MR = 8, CW = PW - ML - MR;
 
-      const G  = [30,86,49], MG = [45,122,74], LG = [232,245,236];
+      const G  = [90,155,102], MG = [120,180,130], LG = [232,245,236];
       const NV = [31,56,100], WH = [255,255,255];
       const TPC = '{total_pages_count_string}';
 
@@ -2295,7 +2295,7 @@ function generatePDF() {
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
       const PW = doc.internal.pageSize.getWidth();   // 279.4
       const ML = 12, MR = 12, CW = PW - ML - MR;
-      const G  = [30,86,49], MG = [46,125,50], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const G  = [90,155,102], MG = [120,180,130], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
       const RED = [180,30,40], REDBG = [255,245,245], REDLN = [220,180,180];
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
@@ -2780,7 +2780,7 @@ function generateMedList() {
       const PH = doc.internal.pageSize.getHeight();
       const ML = 12, MR = 12, CW = PW - ML - MR;
       // Colors
-      const G   = [30,86,49], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const G   = [90,155,102], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
       const PUR = [85,60,154], PLG = [245,242,255];
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
@@ -3074,7 +3074,7 @@ function generateConsolidatedForm() {
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
-      const G   = [30,86,49];  const MG  = [46,125,50]; const LG  = [232,245,236];
+      const G   = [90,155,102];  const MG  = [120,180,130]; const LG  = [232,245,236];
       const NV  = [31,56,100]; const WH  = [255,255,255];
       const AMH = [180,100,0]; const AMB = [255,248,220];
       const ORH = [190,90,0];  const ORB = [255,240,220];
@@ -4121,7 +4121,7 @@ function generateNonDispensingForm() {
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
-      const G  = [30,86,49];    // Dazzle green
+      const G  = [90,155,102];    // Dazzle green (lighter for pen visibility)
       const AC = [26,82,118];   // AllCare blue
       const WH = [255,255,255];
       const LG = [232,245,236];
