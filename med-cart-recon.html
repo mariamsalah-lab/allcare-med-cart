@@ -1954,7 +1954,7 @@ function generateComparisonPDF() {
       const PH = doc.internal.pageSize.getHeight();
       const ML = 8, MR = 8, CW = PW - ML - MR;
 
-      const G  = [255,255,255], MG = [255,255,255], LG = [232,245,236];
+      const G  = [30,86,49], MG = [45,122,74], LG = [232,245,236];
       const NV = [31,56,100], WH = [255,255,255];
       const TPC = '{total_pages_count_string}';
 
@@ -1966,12 +1966,12 @@ function generateComparisonPDF() {
       // ── Page header (redrawn on every page by didDrawPage) ─────────────
       function drawPageHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        // Row 1 — light green title bar
-        doc.setFillColor(...G); doc.rect(0,0,PW,13,'F');
+        // Row 1 — white title bar
+        doc.setFillColor(255,255,255); doc.rect(0,0,PW,13,'F');
         doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20,65,32);
         doc.text(`MEDICATION CART RECONCILIATION — ${facility}`, PW/2, 9, {align:'center'});
-        // Row 2 — slightly darker light green subtitle
-        doc.setFillColor(...MG); doc.rect(0,13,PW,7,'F');
+        // Row 2 — white subtitle bar
+        doc.setFillColor(255,255,255); doc.rect(0,13,PW,7,'F');
         doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,65,32);
         doc.text(`Dazzle Health P.C. · AllCare · MSC Program · Cycle: ${cycleDate}`, PW/2, 17.8, {align:'center'});
         doc.text('Page '+pg+' of '+TPC, PW-MR, 17.8, {align:'right'});
@@ -2295,7 +2295,7 @@ function generatePDF() {
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
       const PW = doc.internal.pageSize.getWidth();   // 279.4
       const ML = 12, MR = 12, CW = PW - ML - MR;
-      const G  = [255,255,255], MG = [255,255,255], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const G  = [30,86,49], MG = [46,125,50], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
       const RED = [180,30,40], REDBG = [255,245,245], REDLN = [220,180,180];
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
@@ -2303,8 +2303,8 @@ function generatePDF() {
 
       function drawPageHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        // Green bar
-        doc.setFillColor(...G);
+        // White header bar
+        doc.setFillColor(255,255,255);
         doc.rect(0, 0, PW, 20, 'F');
         // Brand left
         doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,65,32);
@@ -2780,7 +2780,7 @@ function generateMedList() {
       const PH = doc.internal.pageSize.getHeight();
       const ML = 12, MR = 12, CW = PW - ML - MR;
       // Colors
-      const G   = [255,255,255], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const G   = [30,86,49], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
       const PUR = [85,60,154], PLG = [245,242,255];
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
@@ -2788,8 +2788,8 @@ function generateMedList() {
 
       function drawMLHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        // Light green bar with purple accent stripe
-        doc.setFillColor(...G); doc.rect(0, 0, PW, 20, 'F');
+        // White header bar with purple accent stripe
+        doc.setFillColor(255,255,255); doc.rect(0, 0, PW, 20, 'F');
         doc.setFillColor(85,60,154); doc.rect(0, 0, 4, 20, 'F'); // left accent stripe
         // Brand
         doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,65,32);
@@ -3074,7 +3074,7 @@ function generateConsolidatedForm() {
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
-      const G   = [255,255,255];  const MG  = [255,255,255]; const LG  = [232,245,236];
+      const G   = [30,86,49];  const MG  = [46,125,50]; const LG  = [232,245,236];
       const NV  = [31,56,100]; const WH  = [255,255,255];
       const AMH = [180,100,0]; const AMB = [255,248,220];
       const ORH = [190,90,0];  const ORB = [255,240,220];
@@ -3165,7 +3165,7 @@ function generateConsolidatedForm() {
 
       function drawHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        doc.setFillColor(...G); doc.rect(0,0,PW,22,'F');
+        doc.setFillColor(255,255,255); doc.rect(0,0,PW,22,'F');
         doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,65,32);
         doc.text('Dazzle Health PC', ML, 8);
         doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(31,56,100);
@@ -4121,7 +4121,7 @@ function generateNonDispensingForm() {
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
-      const G  = [255,255,255];    // Dazzle green (lighter for pen visibility)
+      const G  = [30,86,49];
       const AC = [26,82,118];   // AllCare blue
       const WH = [255,255,255];
       const LG = [232,245,236];
@@ -4130,8 +4130,8 @@ function generateNonDispensingForm() {
 
       function drawHeaderND() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        // Light green bar
-        doc.setFillColor(...G); doc.rect(0,0,PW,22,'F');
+        // White header bar
+        doc.setFillColor(255,255,255); doc.rect(0,0,PW,22,'F');
         // Left: Dazzle Health PC + AllCare
         doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,65,32);
         doc.text('Dazzle Health PC', ML, 8);
