@@ -4178,25 +4178,25 @@ function generateNonDispensingForm() {
         currentPatient = pt.name;
         if (ptIdx > 0) { doc.addPage(); drawHeaderND(); y = 25; }
 
-        // ── Patient card (dark green background) ──
+        // ── Patient card (white background, dark text for pen visibility) ──
         const cardH = 22;
-        doc.setFillColor(...G); doc.setDrawColor(...G); doc.setLineWidth(0.3);
+        doc.setFillColor(255,255,255); doc.setDrawColor(...G); doc.setLineWidth(0.5);
         doc.rect(ML, y, CW, cardH, 'FD');
 
         // Left: patient name
-        doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20,65,32);
         doc.text(pt.name, ML+5, y+8);
         const infoStr = [pt.dob ? 'DOB: '+pt.dob : '', pt.ageSex || ''].filter(Boolean).join('    ');
         if (infoStr) {
-          doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(200,235,210);
+          doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,100,70);
           doc.text(infoStr, ML+5, y+15);
         }
 
         // Right: Start / End time + Care Partner fields
         const rx = ML + CW*0.52;
-        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(20,65,32);
         doc.text('Start Time:', rx, y+8);
-        doc.setDrawColor(180,220,190); doc.setLineWidth(0.3);
+        doc.setDrawColor(...G); doc.setLineWidth(0.4);
         doc.line(rx+23, y+8.5, rx+(CW*0.24), y+8.5);
         doc.text('End Time:', rx + CW*0.26, y+8);
         doc.line(rx + CW*0.26 + 21, y+8.5, ML+CW-3, y+8.5);
