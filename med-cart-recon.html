@@ -1954,7 +1954,7 @@ function generateComparisonPDF() {
       const PH = doc.internal.pageSize.getHeight();
       const ML = 8, MR = 8, CW = PW - ML - MR;
 
-      const G  = [90,155,102], MG = [120,180,130], LG = [232,245,236];
+      const G  = [210,235,215], MG = [185,218,192], LG = [232,245,236];
       const NV = [31,56,100], WH = [255,255,255];
       const TPC = '{total_pages_count_string}';
 
@@ -1966,13 +1966,13 @@ function generateComparisonPDF() {
       // ── Page header (redrawn on every page by didDrawPage) ─────────────
       function drawPageHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        // Row 1 — dark green title bar
+        // Row 1 — light green title bar
         doc.setFillColor(...G); doc.rect(0,0,PW,13,'F');
-        doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20,65,32);
         doc.text(`MEDICATION CART RECONCILIATION — ${facility}`, PW/2, 9, {align:'center'});
-        // Row 2 — medium green subtitle
+        // Row 2 — slightly darker light green subtitle
         doc.setFillColor(...MG); doc.rect(0,13,PW,7,'F');
-        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...WH);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(20,65,32);
         doc.text(`Dazzle Health P.C. · AllCare · MSC Program · Cycle: ${cycleDate}`, PW/2, 17.8, {align:'center'});
         doc.text('Page '+pg+' of '+TPC, PW-MR, 17.8, {align:'right'});
       }
@@ -2295,7 +2295,7 @@ function generatePDF() {
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'letter' });
       const PW = doc.internal.pageSize.getWidth();   // 279.4
       const ML = 12, MR = 12, CW = PW - ML - MR;
-      const G  = [90,155,102], MG = [120,180,130], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const G  = [210,235,215], MG = [185,218,192], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
       const RED = [180,30,40], REDBG = [255,245,245], REDLN = [220,180,180];
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
@@ -2307,22 +2307,22 @@ function generatePDF() {
         doc.setFillColor(...G);
         doc.rect(0, 0, PW, 20, 'F');
         // Brand left
-        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,65,32);
         doc.text('Dazzle Health PC', ML, 8);
-        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(180,230,195);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(31,56,100);
         doc.text('AllRx', ML, 14);
         // Center title
-        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(20,65,32);
         doc.text('Med Cart Reconciliation', PW/2, 8.5, {align:'center'});
         // Cycle date pill
         const pill = 'Cycle Date: '+cycleDate;
         const pw2  = doc.getTextWidth(pill)+8;
         doc.setFillColor(...WH); doc.setDrawColor(...WH);
         doc.roundedRect(PW/2-pw2/2, 11, pw2, 6, 2, 2, 'F');
-        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(20,65,32);
         doc.text(pill, PW/2, 15.4, {align:'center'});
         // Right: facility + printed + page
-        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.setTextColor(20,65,32); doc.setFont('helvetica','normal'); doc.setFontSize(8);
         doc.text('Facility: '+facility, PW-MR, 7,  {align:'right'});
         doc.text('Printed: '+printed,   PW-MR, 12, {align:'right'});
         doc.text('Page '+pg+' of '+TPC, PW-MR, 17, {align:'right'});
@@ -2780,7 +2780,7 @@ function generateMedList() {
       const PH = doc.internal.pageSize.getHeight();
       const ML = 12, MR = 12, CW = PW - ML - MR;
       // Colors
-      const G   = [90,155,102], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
+      const G   = [210,235,215], LG = [232,245,236], NV = [31,56,100], WH = [255,255,255];
       const PUR = [85,60,154], PLG = [245,242,255];
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
@@ -2788,26 +2788,26 @@ function generateMedList() {
 
       function drawMLHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        // Purple-tinted green bar
+        // Light green bar with purple accent stripe
         doc.setFillColor(...G); doc.rect(0, 0, PW, 20, 'F');
         doc.setFillColor(85,60,154); doc.rect(0, 0, 4, 20, 'F'); // left accent stripe
         // Brand
-        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,65,32);
         doc.text('Dazzle Health PC', ML, 8);
-        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(180,230,195);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(31,56,100);
         doc.text('AllRx', ML, 14);
         // Title
-        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(20,65,32);
         doc.text('Medication List — Cycle Check', PW/2, 8.5, {align:'center'});
         // Cycle date pill
         const pill = 'Cycle Date: '+cycleDate;
         const pw2  = doc.getTextWidth(pill)+8;
         doc.setFillColor(...WH); doc.setDrawColor(...WH);
         doc.roundedRect(PW/2-pw2/2, 11, pw2, 6, 2, 2, 'F');
-        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(20,65,32);
         doc.text(pill, PW/2, 15.4, {align:'center'});
         // Right info
-        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.setTextColor(20,65,32); doc.setFont('helvetica','normal'); doc.setFontSize(8);
         doc.text('Facility: '+facility, PW-MR, 7, {align:'right'});
         doc.text('Printed: '+printed,   PW-MR, 12, {align:'right'});
         doc.text('Page '+pg+' of '+TPC, PW-MR, 17, {align:'right'});
@@ -3074,7 +3074,7 @@ function generateConsolidatedForm() {
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
-      const G   = [90,155,102];  const MG  = [120,180,130]; const LG  = [232,245,236];
+      const G   = [210,235,215];  const MG  = [185,218,192]; const LG  = [232,245,236];
       const NV  = [31,56,100]; const WH  = [255,255,255];
       const AMH = [180,100,0]; const AMB = [255,248,220];
       const ORH = [190,90,0];  const ORB = [255,240,220];
@@ -3166,27 +3166,27 @@ function generateConsolidatedForm() {
       function drawHeader() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
         doc.setFillColor(...G); doc.rect(0,0,PW,22,'F');
-        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,65,32);
         doc.text('Dazzle Health PC', ML, 8);
-        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(180,230,195);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(31,56,100);
         doc.text('AllRx', ML, 14);
-        doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(20,65,32);
         doc.text('Consolidated Visit Form', PW/2, 8, {align:'center'});
-        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(200,235,210);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(50,100,60);
         doc.text('Manifest + Med Cart Reconciliation + Cycle Check', PW/2, 14, {align:'center'});
         const pill = 'Cycle: '+cycleDate;
         const pw2 = doc.getTextWidth(pill)+8;
         doc.setFillColor(...WH); doc.roundedRect(PW/2-pw2/2,15.5,pw2,5.5,2,2,'F');
-        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(20,65,32);
         doc.text(pill, PW/2, 19.5, {align:'center'});
         // Right side: Facility, Patient name, Printed, Page
-        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.setTextColor(20,65,32); doc.setFont('helvetica','normal'); doc.setFontSize(8);
         doc.text('Facility: '+facility, PW-MR, 6, {align:'right'});
         if (currentPatientName) {
-          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,235,150);
+          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(160,80,0);
           doc.text('Patient: '+currentPatientName, PW-MR, 13, {align:'right'});
         }
-        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...WH);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(20,65,32);
         doc.text('Printed: '+printed, PW-MR, 18, {align:'right'});
         doc.text('Page '+pg+' of '+TPC, PW-MR, 22, {align:'right'});
         doc.setDrawColor(...G); doc.setLineWidth(0.8);
@@ -4121,7 +4121,7 @@ function generateNonDispensingForm() {
       const now = new Date();
       const printed = now.toLocaleDateString('en-US')+' '+now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
-      const G  = [90,155,102];    // Dazzle green (lighter for pen visibility)
+      const G  = [210,235,215];    // Dazzle green (lighter for pen visibility)
       const AC = [26,82,118];   // AllCare blue
       const WH = [255,255,255];
       const LG = [232,245,236];
@@ -4130,26 +4130,26 @@ function generateNonDispensingForm() {
 
       function drawHeaderND() {
         const pg = doc.internal.getCurrentPageInfo().pageNumber;
-        // Green bar
+        // Light green bar
         doc.setFillColor(...G); doc.rect(0,0,PW,22,'F');
         // Left: Dazzle Health PC + AllCare
-        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,65,32);
         doc.text('Dazzle Health PC', ML, 8);
-        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(173,216,230);
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(10); doc.setTextColor(31,56,100);
         doc.text('AllCare', ML, 14.5);
         // Center: title + subtitle
-        doc.setFont('helvetica','bold'); doc.setFontSize(13.5); doc.setTextColor(...WH);
+        doc.setFont('helvetica','bold'); doc.setFontSize(13.5); doc.setTextColor(20,65,32);
         doc.text('Med Cart Reconciliation', PW/2, 8, {align:'center'});
-        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(200,235,210);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(50,100,60);
         doc.text('Care Partner Medication Reconciliation Form', PW/2, 14, {align:'center'});
         // Right: facility, patient, printed, page
-        doc.setTextColor(...WH); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.setTextColor(20,65,32); doc.setFont('helvetica','normal'); doc.setFontSize(8);
         doc.text('Facility: '+facility, PW-MR, 6, {align:'right'});
         if (currentPatient) {
-          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,235,150);
+          doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(160,80,0);
           doc.text('Patient: '+currentPatient, PW-MR, 13, {align:'right'});
         }
-        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...WH);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(20,65,32);
         doc.text('Printed: '+printed, PW-MR, 18, {align:'right'});
         doc.text('Page '+pg+' of '+TPC, PW-MR, 22, {align:'right'});
         doc.setDrawColor(...G); doc.setLineWidth(0.8);
